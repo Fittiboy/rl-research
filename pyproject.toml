@@ -21,6 +21,7 @@ dependencies = [
     "ale-py>=0.8.0",
     "autorom[accept-rom-license]>=0.6.1",
     "box2d-py>=2.3.5",
+    "ray[rllib]>=2.9.0",
 ]
 
 [build-system]

@@ -1,0 +1,40 @@
+# ==============================================
+# RLlib PPO Configuration
+# ==============================================
+
+name: "ppo"
+type: "rllib"
+
+# Algorithm-specific parameters
+params:
+  # Training settings
+  num_workers: 2
+  num_gpus: 1
+  framework: "torch"  # Can be "torch" or "tf2"
+  
+  # PPO specific settings
+  train_batch_size: 4000
+  sgd_minibatch_size: 128
+  num_sgd_iter: 30
+  lr: 3e-4
+  gamma: 0.99
+  lambda_: 0.95
+  clip_param: 0.2
+  vf_clip_param: 10.0
+  entropy_coeff: 0.0
+  vf_loss_coeff: 1.0
+  
+  # Model architecture
+  model:
+    fcnet_hiddens: [64, 64]
+    fcnet_activation: "tanh"
+    
+  # Exploration settings
+  explore: true
+  exploration_config:
+    type: "StochasticSampling"
+
+# Evaluation settings
+evaluation_config:
+  explore: false  # No exploration during evaluation
+  env_config: ${env.params}  # Use same env config as training 
