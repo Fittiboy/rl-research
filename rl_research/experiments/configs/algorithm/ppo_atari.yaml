@@ -1,0 +1,26 @@
+name: ppo
+type: stable_baselines3
+params:
+  # Network architecture
+  policy: "CnnPolicy"  # Use CNN policy for image observations
+  
+  # PPO specific parameters
+  learning_rate: 2.5e-4
+  n_steps: 128  # Number of steps to run for each environment per update
+  batch_size: 128  # Set to n_steps to avoid truncated mini-batches
+  n_epochs: 4  # Number of epoch when optimizing the surrogate loss
+  gamma: 0.99  # Discount factor
+  gae_lambda: 0.95  # Factor for trade-off of bias vs variance for GAE
+  clip_range: 0.2  # Clipping parameter
+  clip_range_vf: null  # Clipping parameter for the value function
+  ent_coef: 0.01  # Entropy coefficient for exploration
+  vf_coef: 0.5  # Value function coefficient
+  max_grad_norm: 0.5  # Max gradient norm for gradient clipping
+  target_kl: null  # Target KL divergence threshold
+  
+  # Other parameters
+  device: "auto"  # Use GPU if available
+  normalize_advantage: true  # Normalize advantage estimates
+
+# Environment settings
+n_envs: 16  # Number of parallel environments 
