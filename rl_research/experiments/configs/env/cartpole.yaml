@@ -1,6 +1,0 @@
-name: cartpole
-type: "gym"
-id: "CartPole-v1"
-
-params:
-  max_episode_steps: 500 
