@@ -14,27 +14,26 @@ A modular framework for reinforcement learning research with integrated experime
 ## Project Structure
 ```
 rl_research/
-├── algorithms/          # RL algorithm implementations
-│   └── custom/         # Custom algorithm implementations
-├── environments/       # Environment definitions
-│   ├── wrappers/      # Custom gym wrappers
-│   └── custom_envs/   # Custom environment implementations
-├── experiments/       # Experiment management
-│   ├── configs/       # Configuration files
+├── callbacks/         # Training callbacks
+│   └── training.py   # Core callback implementations
+├── experiments/      # Experiment management
+│   ├── configs/      # Configuration files
 │   │   ├── algorithm/ # Algorithm-specific configs
 │   │   ├── env/      # Environment-specific configs
 │   │   └── experiment.yaml
-│   ├── runs/         # Experiment run data
-│   └── cli.py        # Command-line interface
-├── utils/            # Utility functions
-└── tests/           # Test suite
+│   └── cli.py       # Command-line interface
+├── utils/           # Utility functions
+│   ├── logger.py    # Logging utilities
+│   ├── registry.py  # Environment/Algorithm registry
+│   └── viz.py       # Visualization utilities
+└── tests/          # Test suite
 ```
 
 ## Installation
 
 1. Create and activate conda environment:
 ```bash
-conda create -n rl-research python=3.8
+conda create -n rl-research python=3.10
 conda activate rl-research
 ```
 
@@ -78,6 +77,9 @@ The framework requires the following major dependencies (automatically installed
 
 #### Testing
 - `pytest>=7.0.0`: Testing framework
+- `pytest-cov>=4.1.0`: Coverage reporting
+- `pytest-xdist>=3.5.0`: Parallel testing
+- `pytest-sugar>=1.0.0`: Test progress visualization
 
 ### Package Data
 
@@ -134,15 +136,25 @@ Then open `docs/build/html/index.html` in your browser.
 Run the test suite to ensure everything is working correctly:
 
 ```bash
+# Run all tests
 pytest tests/
+
+# Run with coverage report
+pytest tests/ --cov=rl_research
+
+# Run tests in parallel
+pytest tests/ -n auto
+
+# Run with all features
+pytest tests/ --cov=rl_research -n auto --cov-report=html
 ```
 
 The test suite covers:
 - Core functionality
-- Environment wrappers
-- Algorithm implementations
+- Callback implementations
 - Visualization utilities
 - Logging and experiment tracking
+- Configuration management
 
 ## Development
 
