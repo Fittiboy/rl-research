@@ -50,6 +50,41 @@ pip install -e .
 export WANDB_API_KEY=your_key_here
 ```
 
+### Dependencies
+
+The framework requires the following major dependencies (automatically installed):
+
+#### Reinforcement Learning
+- `gymnasium[all]>=0.29.1`: Core RL environments
+- `stable-baselines3[extra]>=2.2.1`: RL algorithms
+- `ale-py>=0.8.0`: Atari environments
+- `box2d-py>=2.3.5`: Box2D environments
+- `autorom[accept-rom-license]>=0.6.1`: ROM management for Atari
+
+#### Deep Learning
+- `torch>=2.1.0`: Deep learning backend
+
+#### Experiment Management
+- `wandb>=0.16.0`: Experiment tracking
+- `hydra-core>=1.3.2`: Configuration management
+- `omegaconf>=2.3.0`: Configuration system
+- `PyYAML>=6.0.1`: YAML file support
+- `tensorboard>=2.15.0`: Training visualization
+
+#### Visualization
+- `matplotlib>=3.8.0`: Plotting utilities
+- `seaborn>=0.13.0`: Statistical visualization
+- `opencv-python>=4.8.0`: Video processing
+
+#### Testing
+- `pytest>=7.0.0`: Testing framework
+
+### Package Data
+
+The package includes:
+- All YAML configuration files
+- Excludes runtime directories: `wandb/`, `outputs/`, `models/`, `logs/`
+
 ## Quick Start
 
 1. Run a basic experiment:
@@ -59,12 +94,17 @@ python -m rl_research.experiments.cli
 
 2. Run a parameter sweep:
 ```bash
-python -m rl_research.experiments.cli algorithm.params.learning_rate=0.0001,0.0003,0.001
+python -m rl_research.experiments.cli -m algorithm.params.learning_rate=0.0001,0.0003,0.001
 ```
 
 3. Run with multiple seeds:
 ```bash
 python -m rl_research.experiments.cli experiment.seed=1,2,3,4,5
+```
+
+4. Run with specific algorithm and environment:
+```bash
+python -m rl_research.experiments.cli algorithm=ppo env=cartpole
 ```
 
 ## Documentation
@@ -88,6 +128,21 @@ make html
 ```
 
 Then open `docs/build/html/index.html` in your browser.
+
+## Testing
+
+Run the test suite to ensure everything is working correctly:
+
+```bash
+pytest tests/
+```
+
+The test suite covers:
+- Core functionality
+- Environment wrappers
+- Algorithm implementations
+- Visualization utilities
+- Logging and experiment tracking
 
 ## Development
 

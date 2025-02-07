@@ -8,7 +8,7 @@ Prerequisites
 
 Before installing RL Research, ensure you have the following prerequisites:
 
-* Python 3.10 or higher
+* Python 3.8 or higher
 * pip (Python package installer)
 * git (for version control)
 * conda (recommended for environment management)
@@ -20,7 +20,7 @@ Basic Installation
 
    .. code-block:: bash
 
-      conda create -n rl-research python=3.10
+      conda create -n rl-research python=3.8
       conda activate rl-research
 
 2. Clone the repository:
@@ -34,42 +34,56 @@ Basic Installation
 
    .. code-block:: bash
 
-      # For basic installation
       pip install -e .
 
-      # For development installation (includes testing tools)
-      pip install -e ".[dev]"
+Core Dependencies
+---------------
 
-      # For visualization tools only
-      pip install -e ".[viz]"
+The framework includes the following major dependencies (automatically installed):
 
-Development Installation
-----------------------
+* **Reinforcement Learning**:
+   * ``gymnasium[all]>=0.29.1``: Core RL environments
+   * ``stable-baselines3[extra]>=2.2.1``: RL algorithms
+   * ``ale-py>=0.8.0``: Atari environments
+   * ``box2d-py>=2.3.5``: Box2D environments
+   * ``autorom[accept-rom-license]>=0.6.1``: ROM management for Atari
 
-For development, you'll want to install additional dependencies:
+* **Deep Learning**:
+   * ``torch>=2.1.0``: Deep learning backend
 
-.. code-block:: bash
+* **Experiment Management**:
+   * ``wandb>=0.16.0``: Experiment tracking
+   * ``hydra-core>=1.3.2``: Configuration management
+   * ``omegaconf>=2.3.0``: Configuration system
+   * ``PyYAML>=6.0.1``: YAML file support
+   * ``tensorboard>=2.15.0``: Training visualization
 
-   pip install -e ".[dev]"
+* **Visualization**:
+   * ``matplotlib>=3.8.0``: Plotting utilities
+   * ``seaborn>=0.13.0``: Statistical visualization
+   * ``opencv-python>=4.8.0``: Video processing
 
-This will install:
+* **Testing**:
+   * ``pytest>=7.0.0``: Testing framework
 
-* pytest (for running tests)
-* black (for code formatting)
-* isort (for import sorting)
-* flake8 (for linting)
-* mypy (for type checking)
+Package Data
+-----------
+
+The package includes:
+
+* All YAML configuration files
+* Excludes runtime directories:
+   * ``wandb/``
+   * ``outputs/``
+   * ``models/``
+   * ``logs/``
 
 Weights & Biases Setup
 --------------------
 
 RL Research uses Weights & Biases for experiment tracking. To set it up:
 
-1. Install wandb:
-
-   .. code-block:: bash
-
-      pip install wandb
+1. Create a free account at `wandb.ai <https://wandb.ai>`_ if you haven't already
 
 2. Log in to your wandb account:
 
@@ -94,12 +108,6 @@ Depending on your needs, you might want to install additional packages:
 
      conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 
-* For visualization tools:
-
-  .. code-block:: bash
-
-     pip install -e ".[viz]"
-
 Troubleshooting
 --------------
 
@@ -121,6 +129,17 @@ Common Issues
    .. code-block:: bash
 
       conda activate rl-research
+
+4. Atari ROM issues
+
+   If you encounter issues with Atari environments:
+
+   .. code-block:: bash
+
+      # Install AutoROM
+      pip install autorom[accept-rom-license]
+      # Download Atari ROMs
+      AutoROM --accept-license
 
 Getting Help
 ~~~~~~~~~~~
