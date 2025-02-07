@@ -1,5 +1,6 @@
 """Logging utilities for experiment tracking."""
 import os
+import warnings
 from typing import List, Dict, Any, Optional, Union, Tuple, cast, TypeVar, Literal, Protocol, Sequence
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
@@ -7,9 +8,14 @@ import wandb
 import gymnasium as gym
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv
+from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv, VecTransposeImage
 from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
+from stable_baselines3.common.preprocessing import is_image_space
 from omegaconf import DictConfig, OmegaConf
+from gymnasium import spaces
+
+# Suppress warning about environment type mismatch
+warnings.filterwarnings('ignore', message='Training and eval env are not of the same type')
 
 # Type definitions
 GymEnv = Union[gym.Env, VecEnv]
@@ -47,6 +53,7 @@ class VideoEvalCallback(EvalCallback):
         self.video_fps = video_fps
         self.eval_idx = 0
         self.last_mean_reward = 0.0
+        self._last_frames: Optional[NDArray[np.uint8]] = None  # Store last recorded frames for testing
     
     def _on_step(self) -> bool:
         """Record videos during evaluation."""
@@ -125,8 +132,12 @@ class VideoEvalCallback(EvalCallback):
                     if np.max(frames_array) <= 1.0:
                         frames_array = (frames_array * 255).astype(np.uint8)
                     
-                    # Transpose for WandB (T, H, W, C) -> (T, C, H, W)
+                    # Convert from (T, H, W, C) to (T, C, H, W) for WandB
+                    # WandB expects PyTorch-style TCHW format
                     frames_array = np.transpose(frames_array, (0, 3, 1, 2))
+                    
+                    # Store frames for testing (in original HWC format)
+                    self._last_frames = np.transpose(frames_array, (0, 2, 3, 1))
                     
                     # Create and log video
                     video = wandb.Video(
@@ -184,40 +195,36 @@ class ExperimentLogger:
             mode=cast(Literal["online", "offline", "disabled"], mode),
         )
     
-    def get_callbacks(self) -> List[BaseCallback]:
+    def get_callbacks(self):
         """Get list of callbacks for training."""
-        if self._callbacks is None:
-            self._callbacks = []
-            
-            # Evaluation callback with video recording
-            if hasattr(self.config.experiment, "eval_frequency"):
-                # Create evaluation environment with same settings as training
-                env_kwargs = dict(self.config.env.params)
-                env_kwargs["render_mode"] = "rgb_array"  # Override render_mode for evaluation
-                
-                eval_env = Monitor(gym.make(self.config.env.id, **env_kwargs))
-                
-                # If using multiple environments, wrap in DummyVecEnv
-                if hasattr(self.config.algorithm, "n_envs") and self.config.algorithm.n_envs > 1:
-                    eval_env = DummyVecEnv([lambda: gym.make(self.config.env.id, render_mode="rgb_array", **env_kwargs)])
-                
-                eval_callback = VideoEvalCallback(
-                    eval_env=eval_env,
-                    eval_freq=self.config.experiment.eval_frequency,
-                    video_fps=self.config.video.fps,
-                    n_eval_episodes=self.config.video.num_episodes,
-                )
-                self._callbacks.append(eval_callback)
-            
-            # Episode logging callback
-            self._callbacks.append(EpisodeLoggingCallback(self))
+        # Create evaluation environment
+        eval_env = DummyVecEnv([lambda: Monitor(gym.make(self.config.env.id, render_mode="rgb_array", **self.config.env.params))])
         
-        return self._callbacks
+        # Only apply VecTransposeImage if observation space is an image
+        if is_image_space(eval_env.observation_space) or isinstance(eval_env.observation_space, spaces.Dict):
+            eval_env = VecTransposeImage(eval_env)
+        
+        # Create callbacks
+        callbacks = []
+        
+        # Add episode logging callback
+        callbacks.append(EpisodeLoggingCallback(self))
+        
+        # Add video evaluation callback
+        callbacks.append(
+            VideoEvalCallback(
+                eval_env,  # Uses original HWC format
+                eval_freq=self.config.experiment.eval_frequency,
+                n_eval_episodes=self.config.video.num_episodes,
+                video_fps=self.config.video.fps,
+            )
+        )
+        
+        return callbacks
     
-    def log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
+    def log_metrics(self, metrics: Dict[str, Any]) -> None:
         """Log metrics to WandB."""
-        if self.run is not None:
-            self.run.log(metrics, step=step)
+        wandb.log(metrics)
     
     def save_model(self, model: Any, name: str = "final_model") -> None:
         """Save model with WandB logging."""
@@ -274,15 +281,15 @@ class EpisodeLoggingCallback(BaseCallback):
         self._episode_lengths: List[int] = []
     
     def _on_step(self) -> bool:
-        """Log episode metrics."""
-        for info in self.locals["infos"]:
+        """Log episode metrics when an episode ends."""
+        for info in self.locals.get("infos", []):
             if "episode" in info:
-                self._episode_count += 1
                 episode_info = info["episode"]
                 self._episode_rewards.append(episode_info["r"])
                 self._episode_lengths.append(episode_info["l"])
+                self._episode_count += 1
                 
-                # Calculate statistics over last 100 episodes
+                # Calculate rolling statistics
                 window = min(100, len(self._episode_rewards))
                 recent_rewards = self._episode_rewards[-window:]
                 recent_lengths = self._episode_lengths[-window:]
@@ -290,11 +297,10 @@ class EpisodeLoggingCallback(BaseCallback):
                 self._logger.log_metrics({
                     "train/episode_reward": episode_info["r"],
                     "train/episode_length": episode_info["l"],
-                    "train/episode_reward_mean": sum(recent_rewards) / window,
-                    "train/episode_reward_std": float(np.std(recent_rewards)),
-                    "train/episode_length_mean": sum(recent_lengths) / window,
                     "train/episode_count": self._episode_count,
-                }, step=self.num_timesteps)
+                    "train/mean_reward": np.mean(recent_rewards),
+                    "train/mean_length": np.mean(recent_lengths),
+                })
         
         return True
 

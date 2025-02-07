@@ -6,6 +6,7 @@ params:
   
   # DQN specific parameters
   learning_rate: 1e-4
+  buffer_size: 200000  # Default is 1M, setting to 200K
   batch_size: 128
   gamma: 0.99
   exploration_fraction: 0.1
