@@ -19,6 +19,7 @@ class QuickStartCallback(BaseCallback):
         self.episode_rewards: List[float] = []
         self.episode_lengths: List[int] = []
         self._current_episode_reward: float = 0.0
+        self._episode_start_step: int = 0
     
     def _on_step(self) -> bool:
         """Called after each step in the environment."""
@@ -27,21 +28,26 @@ class QuickStartCallback(BaseCallback):
         reward = rewards[0] if rewards and len(rewards) > 0 else 0
         self._current_episode_reward += reward
         
-        # When episode ends, log the total reward
+        # When episode ends, log the total reward and length
         dones = self.locals.get("dones") 
         if dones and len(dones) > 0 and dones[0]:
+            # Calculate episode length as steps since episode start
+            episode_length = self.n_calls - self._episode_start_step
+            
+            # Store metrics
             self.episode_rewards.append(self._current_episode_reward)
-            self.episode_lengths.append(self.n_calls - (len(self.episode_lengths) * self.n_calls))
+            self.episode_lengths.append(episode_length)
             
             # Log to WandB
             if len(self.episode_rewards) % 10 == 0:  # Log every 10 episodes
                 wandb.log({
-                    "episode_reward": np.mean(self.episode_rewards[-10:]),
-                    "episode_length": np.mean(self.episode_lengths[-10:]),
+                    "episode_reward": float(np.mean(self.episode_rewards[-10:])),
+                    "episode_length": float(np.mean(self.episode_lengths[-10:])),
                     "total_timesteps": self.num_timesteps,
-                })
+                }, step=self.num_timesteps)
             
-            # Reset episode reward accumulator
+            # Reset for next episode
             self._current_episode_reward = 0.0
+            self._episode_start_step = self.n_calls
         
         return True 

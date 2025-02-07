@@ -30,7 +30,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.monitor import Monitor
 from rl_research.callbacks import QuickStartCallback
+import pandas as pd
 
 def record_video_episodes(
     model: PPO,
@@ -162,15 +164,25 @@ def main(cfg: DictConfig) -> None:
         2. Pre-built neural network policies
         3. Training and evaluation utilities
         """
+        # Determine device based on policy type
+        # Use CPU for MLP policies (better performance) and GPU for CNN policies
+        policy_type = "MlpPolicy"
+        device = "cpu"  # MLP policies run faster on CPU
+        if torch.cuda.is_available() and "Cnn" in policy_type:
+            device = "cuda"
+            print("\nUsing GPU for CNN policy")
+        else:
+            print("\nUsing CPU for MLP policy (recommended)")
+        
         model = PPO(
-            policy="MlpPolicy",
+            policy=policy_type,
             env=env,
             learning_rate=3e-4,
             n_steps=2048,
             batch_size=64,
             n_epochs=10,
             gamma=0.99,
-            device="cuda" if torch.cuda.is_available() else "cpu",
+            device=device,
             verbose=1
         )
         
@@ -203,18 +215,54 @@ def main(cfg: DictConfig) -> None:
         2. Policy evaluation
         3. Environment renders
         """
-        # Plot learning curve
-        plt.figure(figsize=(10, 6))
-        sns.lineplot(
-            x=range(len(callback.episode_rewards)),
-            y=callback.episode_rewards,
-            label="Episode Reward"
-        )
-        plt.title("Training Progress")
-        plt.xlabel("Episode")
-        plt.ylabel("Reward")
-        plt.savefig("learning_curve.png")
-        wandb.log({"learning_curve": wandb.Image("learning_curve.png")})
+        # Enhanced learning curve visualization
+        plt.style.use('seaborn-v0_8-darkgrid')
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+        fig.suptitle('Training Progress', fontsize=16, y=0.95)
+        
+        # Calculate rolling statistics
+        window = 20  # Rolling window size
+        rewards = np.array(callback.episode_rewards)
+        lengths = np.array(callback.episode_lengths)
+        episodes = np.arange(len(rewards))
+        
+        # Compute rolling mean and std
+        reward_mean = pd.Series(rewards).rolling(window=window, min_periods=1).mean()
+        reward_std = pd.Series(rewards).rolling(window=window, min_periods=1).std()
+        length_mean = pd.Series(lengths).rolling(window=window, min_periods=1).mean()
+        length_std = pd.Series(lengths).rolling(window=window, min_periods=1).std()
+        
+        # Plot rewards
+        ax1.plot(episodes, reward_mean, color='#2ecc71', label=f'Mean (window={window})')
+        ax1.fill_between(episodes, 
+                        reward_mean - reward_std, 
+                        reward_mean + reward_std, 
+                        color='#2ecc71', 
+                        alpha=0.2, 
+                        label='±1 std')
+        ax1.scatter(episodes, rewards, color='#2ecc71', alpha=0.1, s=10, label='Raw rewards')
+        ax1.set_ylabel('Episode Reward', fontsize=12)
+        ax1.legend(loc='upper left', frameon=True)
+        ax1.grid(True, linestyle='--', alpha=0.7)
+        
+        # Plot lengths
+        ax2.plot(episodes, length_mean, color='#3498db', label=f'Mean (window={window})')
+        ax2.fill_between(episodes, 
+                        length_mean - length_std, 
+                        length_mean + length_std, 
+                        color='#3498db', 
+                        alpha=0.2, 
+                        label='±1 std')
+        ax2.scatter(episodes, lengths, color='#3498db', alpha=0.1, s=10, label='Raw lengths')
+        ax2.set_xlabel('Episode', fontsize=12)
+        ax2.set_ylabel('Episode Length', fontsize=12)
+        ax2.legend(loc='upper left', frameon=True)
+        ax2.grid(True, linestyle='--', alpha=0.7)
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        plt.savefig("learning_curve.png", dpi=300, bbox_inches='tight')
+        wandb.log({"learning_curves": wandb.Image("learning_curve.png")})
         
         # Record and log evaluation episodes
         print("\nRecording evaluation episodes...")
@@ -242,13 +290,15 @@ def main(cfg: DictConfig) -> None:
             })
         
         # Also log some evaluation metrics
-        eval_env = gym.make("CartPole-v1")
+        print("\nRunning final evaluation...")
+        eval_env = Monitor(gym.make("CartPole-v1"))
         mean_reward, std_reward = evaluate_policy(
             model,
             eval_env,
             n_eval_episodes=10,
             deterministic=True
         )
+        print(f"Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
         wandb.log({
             "eval/mean_reward": mean_reward,
             "eval/std_reward": std_reward
