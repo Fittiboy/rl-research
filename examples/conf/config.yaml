@@ -1,0 +1,39 @@
+# ==============================================
+# Quick Start Configuration
+# ==============================================
+
+# Environment settings
+environment:
+  name: "CartPole-v1"
+  max_episode_steps: 500
+
+# Algorithm settings
+algorithm:
+  name: "PPO"
+  policy: "MlpPolicy"
+  params:
+    learning_rate: 3.0e-4
+    n_steps: 2048
+    batch_size: 64
+    n_epochs: 10
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    normalize_advantage: true
+    # Automatically detect device
+    device: ${oc.env:CUDA_VISIBLE_DEVICES,"cuda"}
+
+# Training settings
+training:
+  total_timesteps: 50000
+  eval_frequency: 5000
+  save_frequency: 10000
+
+# Logging settings
+logging:
+  wandb:
+    project: "rl-quickstart"
+    group: "${algorithm.name}_${environment.name}"
+    tags: ["quickstart"]
+    # Can be disabled via environment variable
+    mode: ${oc.env:WANDB_MODE,"online"} 

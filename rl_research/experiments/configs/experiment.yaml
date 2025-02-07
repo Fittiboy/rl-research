@@ -1,0 +1,15 @@
+defaults:
+  - algorithm: ppo
+  - env: cartpole
+  - _self_
+
+experiment:
+  name: ${algorithm.name}_${env.name}
+  seed: 42
+  total_timesteps: 1_000_000
+  eval_frequency: 10_000
+  
+wandb:
+  project: "rl_research"
+  group: "${experiment.name}"
+  tags: [] 

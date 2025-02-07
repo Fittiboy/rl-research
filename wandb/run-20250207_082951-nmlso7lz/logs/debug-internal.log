@@ -1,0 +1,16 @@
+{"time":"2025-02-07T08:29:52.0671257+01:00","level":"INFO","msg":"stream: starting","core version":"0.19.6","symlink path":"/home/fitti/research/wandb/run-20250207_082951-nmlso7lz/logs/debug-core.log"}
+{"time":"2025-02-07T08:29:52.168686177+01:00","level":"INFO","msg":"created new stream","id":"nmlso7lz"}
+{"time":"2025-02-07T08:29:52.168703299+01:00","level":"INFO","msg":"stream: started","id":"nmlso7lz"}
+{"time":"2025-02-07T08:29:52.168761419+01:00","level":"INFO","msg":"writer: Do: started","stream_id":"nmlso7lz"}
+{"time":"2025-02-07T08:29:52.168776919+01:00","level":"INFO","msg":"sender: started","stream_id":"nmlso7lz"}
+{"time":"2025-02-07T08:29:52.16880389+01:00","level":"INFO","msg":"handler: started","stream_id":"nmlso7lz"}
+{"time":"2025-02-07T08:29:52.440839104+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-07T08:30:18.472333735+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-07T08:30:18.4726062+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-07T08:30:19.07257058+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-07T08:30:19.129921604+01:00","level":"INFO","msg":"stream: closing","id":"nmlso7lz"}
+{"time":"2025-02-07T08:30:19.129936112+01:00","level":"WARN","msg":"sender: received Exit record more than once, ignoring"}
+{"time":"2025-02-07T08:30:19.485973602+01:00","level":"INFO","msg":"handler: closed","stream_id":"nmlso7lz"}
+{"time":"2025-02-07T08:30:19.485987979+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":"nmlso7lz"}
+{"time":"2025-02-07T08:30:19.48599909+01:00","level":"INFO","msg":"sender: closed","stream_id":"nmlso7lz"}
+{"time":"2025-02-07T08:30:19.486036901+01:00","level":"INFO","msg":"stream: closed","id":"nmlso7lz"}

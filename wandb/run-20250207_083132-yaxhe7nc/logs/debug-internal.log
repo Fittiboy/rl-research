@@ -1,0 +1,16 @@
+{"time":"2025-02-07T08:31:32.544003479+01:00","level":"INFO","msg":"stream: starting","core version":"0.19.6","symlink path":"/home/fitti/research/wandb/run-20250207_083132-yaxhe7nc/logs/debug-core.log"}
+{"time":"2025-02-07T08:31:32.646169259+01:00","level":"INFO","msg":"created new stream","id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:32.646179859+01:00","level":"INFO","msg":"stream: started","id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:32.646436484+01:00","level":"INFO","msg":"writer: Do: started","stream_id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:32.64645031+01:00","level":"INFO","msg":"handler: started","stream_id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:32.646576218+01:00","level":"INFO","msg":"sender: started","stream_id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:32.94322974+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-07T08:31:52.447332517+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-07T08:31:52.447613999+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-07T08:31:53.447682488+01:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading quickstart_model.zip","runtime_seconds":0.258364702,"progress":"138.4KB/138.4KB"}],"total_operations":1}}
+{"time":"2025-02-07T08:31:53.824614165+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-07T08:31:55.146220177+01:00","level":"INFO","msg":"stream: closing","id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:55.146234324+01:00","level":"INFO","msg":"handler: closed","stream_id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:55.146242409+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:55.146260554+01:00","level":"INFO","msg":"sender: closed","stream_id":"yaxhe7nc"}
+{"time":"2025-02-07T08:31:55.146286503+01:00","level":"INFO","msg":"stream: closed","id":"yaxhe7nc"}

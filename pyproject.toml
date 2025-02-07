@@ -1,0 +1,37 @@
+[project]
+name = "rl_research"
+version = "0.1.0"
+description = "Reinforcement Learning Research Framework"
+authors = []
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "gymnasium[all]>=0.29.1",
+    "stable-baselines3[extra]>=2.2.1",
+    "torch>=2.1.0",
+    "wandb>=0.16.0",
+    "hydra-core>=1.3.2",
+    "omegaconf>=2.3.0",
+    "matplotlib>=3.8.0",
+    "seaborn>=0.13.0",
+    "PyYAML>=6.0.1",
+    "pytest>=7.0.0",
+    "tensorboard>=2.15.0",
+    "opencv-python>=4.8.0",
+    "ale-py>=0.8.0",
+    "autorom[accept-rom-license]>=0.6.1",
+    "box2d-py>=2.3.5",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["rl_research"]
+
+[tool.setuptools.package-data]
+rl_research = ["**/*.yaml"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["wandb/*", "outputs/*", "models/*", "logs/*"] 
