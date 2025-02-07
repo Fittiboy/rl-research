@@ -1,7 +1,8 @@
 """Registry for algorithms and environments."""
-from typing import Dict, Type, Any, Optional, Union
+from typing import Dict, Type, Any, Optional, Union, TypeVar, Callable
 import gymnasium as gym
 from stable_baselines3 import PPO, SAC, DQN
+from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from omegaconf import DictConfig
@@ -13,7 +14,15 @@ try:
 except ImportError:
     ale_py = None
 
-ALGORITHM_REGISTRY = {
+# Type variables for better type hints
+AlgorithmType = TypeVar('AlgorithmType', bound=BaseAlgorithm)
+EnvironmentType = TypeVar('EnvironmentType', bound=gym.Env)
+
+# Registry types
+AlgorithmRegistry = Dict[str, Dict[str, Type[AlgorithmType]]]
+EnvironmentRegistry = Dict[str, Dict[str, Type[EnvironmentType]]]
+
+ALGORITHM_REGISTRY: AlgorithmRegistry = {
     "stable_baselines3": {
         "ppo": PPO,
         "sac": SAC,
@@ -24,7 +33,7 @@ ALGORITHM_REGISTRY = {
     }
 }
 
-ENVIRONMENT_REGISTRY = {
+ENVIRONMENT_REGISTRY: EnvironmentRegistry = {
     "gym": {
         # Standard Gym environments are handled directly
     },
@@ -33,20 +42,64 @@ ENVIRONMENT_REGISTRY = {
     }
 }
 
-def register_algorithm(name: str, algorithm_class: Type, algorithm_type: str = "custom"):
-    """Register a new algorithm."""
+def register_algorithm(
+    name: str,
+    algorithm_class: Type[AlgorithmType],
+    algorithm_type: str = "custom"
+) -> None:
+    """Register a new algorithm.
+    
+    Args:
+        name: Name of the algorithm
+        algorithm_class: The algorithm class to register
+        algorithm_type: Type of algorithm (e.g., "stable_baselines3", "custom")
+    
+    Raises:
+        ValueError: If algorithm_class is not a subclass of BaseAlgorithm
+    """
+    if not issubclass(algorithm_class, BaseAlgorithm):
+        raise ValueError(f"Algorithm class must be a subclass of BaseAlgorithm")
+    
     if algorithm_type not in ALGORITHM_REGISTRY:
         ALGORITHM_REGISTRY[algorithm_type] = {}
     ALGORITHM_REGISTRY[algorithm_type][name] = algorithm_class
 
-def register_environment(name: str, environment_class: Type, environment_type: str = "custom"):
-    """Register a new environment."""
+def register_environment(
+    name: str,
+    environment_class: Type[EnvironmentType],
+    environment_type: str = "custom"
+) -> None:
+    """Register a new environment.
+    
+    Args:
+        name: Name of the environment
+        environment_class: The environment class to register
+        environment_type: Type of environment (e.g., "gym", "custom")
+    
+    Raises:
+        ValueError: If environment_class is not a subclass of gym.Env
+    """
+    if not issubclass(environment_class, gym.Env):
+        raise ValueError(f"Environment class must be a subclass of gym.Env")
+    
     if environment_type not in ENVIRONMENT_REGISTRY:
         ENVIRONMENT_REGISTRY[environment_type] = {}
     ENVIRONMENT_REGISTRY[environment_type][name] = environment_class
 
-def get_algorithm(config: DictConfig, env: Union[gym.Env, VecEnv]):
-    """Get algorithm instance from config."""
+def get_algorithm(config: DictConfig, env: Union[gym.Env, VecEnv]) -> BaseAlgorithm:
+    """Get algorithm instance from config.
+    
+    Args:
+        config: Algorithm configuration
+        env: The environment to use
+    
+    Returns:
+        An instance of the specified algorithm
+    
+    Raises:
+        ValueError: If algorithm type or name is unknown
+        KeyError: If required configuration parameters are missing
+    """
     algo_type = config.type
     algo_name = config.name
     
@@ -71,7 +124,19 @@ def get_algorithm(config: DictConfig, env: Union[gym.Env, VecEnv]):
     )
 
 def get_environment(config: DictConfig) -> Union[gym.Env, VecEnv]:
-    """Get environment instance from config."""
+    """Get environment instance from config.
+    
+    Args:
+        config: Environment configuration
+    
+    Returns:
+        An instance of the specified environment
+    
+    Raises:
+        ValueError: If environment type or name is unknown
+        ImportError: If required dependencies are missing
+        KeyError: If required configuration parameters are missing
+    """
     env_type = config.type
     
     if env_type == "gym":
