@@ -1,38 +1,44 @@
 """Logging utilities for experiment tracking."""
 import os
-from typing import List, Dict, Any, Optional, Union, Tuple, cast, TypeVar
+from typing import List, Dict, Any, Optional, Union, Tuple, cast, TypeVar, Literal, Protocol, Sequence
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import NDArray, ArrayLike
 import wandb
 import gymnasium as gym
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv
-from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
+from stable_baselines3.common.type_aliases import GymObs
 from omegaconf import DictConfig, OmegaConf
 
-ObsType = TypeVar("ObsType", np.ndarray, Dict[str, np.ndarray])
+# Type definitions
+GymEnv = Union[gym.Env, VecEnv]
+ObsType = TypeVar('ObsType', np.ndarray, Dict[str, np.ndarray])
+VecResetReturn = Tuple[ObsType, Dict[str, Any]]
+GymResetReturn = Tuple[ObsType, Dict[str, Any]]
+VecStepReturn = Tuple[ObsType, np.ndarray, np.ndarray, List[Dict[str, Any]]]
+GymStepReturn = Tuple[ObsType, float, bool, bool, Dict[str, Any]]
+
+class SupportsRender(Protocol):
+    """Protocol for environments that support rendering."""
+    def render(self) -> Optional[NDArray[np.uint8]]: ...
+
+Frame = NDArray[np.uint8]  # Shape: (H, W, C)
+FrameStack = NDArray[np.uint8]  # Shape: (T, H, W, C)
+Frames = List[Frame]  # For collections of frames
 
 class VideoEvalCallback(EvalCallback):
     """Evaluation callback with video recording."""
     
     def __init__(
         self,
-        eval_env: Union[gym.Env, VecEnv],
+        eval_env: GymEnv,
         eval_freq: int,
         video_fps: int = 30,
         n_eval_episodes: int = 2,
         deterministic: bool = True,
     ):
-        """Initialize callback.
-        
-        Args:
-            eval_env: Environment for evaluation
-            eval_freq: Evaluate every N steps
-            video_fps: FPS for video recording
-            n_eval_episodes: Number of episodes to record
-            deterministic: Whether to use deterministic actions
-        """
+        """Initialize callback."""
         super().__init__(
             eval_env=eval_env,
             n_eval_episodes=n_eval_episodes,
@@ -41,6 +47,7 @@ class VideoEvalCallback(EvalCallback):
         )
         self.video_fps = video_fps
         self.eval_idx = 0
+        self.last_mean_reward = 0.0
     
     def _on_step(self) -> bool:
         """Record videos during evaluation."""
@@ -50,41 +57,44 @@ class VideoEvalCallback(EvalCallback):
             print(f"\nEvaluation at timestep {self.num_timesteps}")
             
             # Record episodes
-            episode_frames: List[NDArray] = []
+            episode_frames: List[FrameStack] = []
             episode_rewards: List[float] = []
             
             for episode in range(self.n_eval_episodes):
-                frames: List[NDArray] = []
+                frames: List[Frame] = []
                 total_reward = 0.0
                 
                 # Handle both vectorized and non-vectorized environments
                 if isinstance(self.eval_env, VecEnv):
-                    obs = self.eval_env.reset()
+                    obs, info = cast(VecResetReturn, self.eval_env.reset())
                 else:
-                    obs = cast(ObsType, self.eval_env.reset()[0])
+                    obs, info = cast(GymResetReturn, self.eval_env.reset())
                 
                 done = False
                 
                 while not done:
                     # Get action from model
-                    action, _ = self.model.predict(cast(ObsType, obs), deterministic=self.deterministic)
+                    action, _ = self.model.predict(obs, deterministic=self.deterministic)
                     
                     # Execute action
                     if isinstance(self.eval_env, VecEnv):
-                        obs, reward, dones, info = self.eval_env.step(action)
-                        done = dones[0]  # Only care about first env
-                        reward = reward[0]
+                        next_obs, rewards, dones, infos = cast(VecStepReturn, self.eval_env.step(action))
+                        obs = next_obs
+                        done = bool(dones[0])  # Only care about first env
+                        reward = float(rewards[0])
                     else:
-                        step_result = self.eval_env.step(action)
-                        obs, reward, terminated, truncated = step_result[:4]
+                        next_obs, reward, terminated, truncated, info = cast(GymStepReturn, self.eval_env.step(action))
+                        obs = next_obs
                         done = terminated or truncated
+                        reward = float(reward)
                     
-                    total_reward += float(reward)
+                    total_reward += reward
                     
                     # Render and capture frame
                     frame = self.eval_env.render()
                     if frame is not None and isinstance(frame, np.ndarray):
-                        frames.append(frame)
+                        frame_array = frame.astype(np.uint8)
+                        frames.append(frame_array)
                 
                 if frames:
                     frames_array = np.stack(frames)
@@ -92,19 +102,24 @@ class VideoEvalCallback(EvalCallback):
                     episode_rewards.append(total_reward)
                     print(f"Episode {episode + 1}: {len(frames)} frames, reward: {total_reward:.2f}")
             
+            # Store mean reward
+            if episode_rewards:
+                self.last_mean_reward = float(np.mean(episode_rewards))
+            
             # Log videos to WandB
-            for i, (frames, reward) in enumerate(zip(episode_frames, episode_rewards)):
+            for i, (frames_stack, reward) in enumerate(zip(episode_frames, episode_rewards)):
                 try:
                     # Ensure frames are uint8 and in range [0, 255]
-                    if frames.dtype != np.uint8:
-                        frames = (frames * 255).astype(np.uint8)
+                    frames_array: NDArray[np.uint8] = frames_stack
+                    if np.max(frames_array) <= 1.0:
+                        frames_array = (frames_array * 255).astype(np.uint8)
                     
                     # Transpose for WandB (T, H, W, C) -> (T, C, H, W)
-                    frames = np.transpose(frames, (0, 3, 1, 2))
+                    frames_array = np.transpose(frames_array, (0, 3, 1, 2))
                     
                     # Create and log video
                     video = wandb.Video(
-                        frames,
+                        frames_array,  # type: ignore
                         fps=self.video_fps,
                         format="mp4",
                         caption=f"Eval {self.eval_idx} - Episode {i+1}"
@@ -113,7 +128,8 @@ class VideoEvalCallback(EvalCallback):
                     wandb.log({
                         f"videos/episode_{i+1}": video,
                         f"videos/episode_{i+1}_reward": reward,
-                        f"videos/episode_{i+1}_length": len(frames)
+                        f"videos/episode_{i+1}_length": len(frames_stack),
+                        "eval/mean_reward": self.last_mean_reward
                     }, step=self.num_timesteps)
                 except Exception as e:
                     print(f"Error logging video to WandB: {str(e)}")
@@ -125,11 +141,11 @@ class VideoEvalCallback(EvalCallback):
 class ExperimentLogger:
     """Logger for tracking experiments with WandB integration."""
     
-    def __init__(self, config: DictConfig, env: Union[gym.Env, VecEnv]):
+    def __init__(self, config: DictConfig, env: GymEnv):
         """Initialize logger with configuration."""
         self.config = config
-        # Only wrap with Monitor if not already a VecEnv
-        self.env = env if isinstance(env, VecEnv) else Monitor(env)
+        # Only wrap with Monitor if not already a VecEnv and not already monitored
+        self.env = env if isinstance(env, (VecEnv, Monitor)) else Monitor(env)
         self.run = None
         self._setup_wandb()
     
@@ -139,9 +155,13 @@ class ExperimentLogger:
         save_dir = self.config.wandb.get("dir", ".")
         
         # Convert config to dict and ensure it's serializable
-        config_dict = dict(wandb_config) if wandb_config else None
-        if isinstance(config_dict, dict):
-            config_dict = {str(k): v for k, v in config_dict.items()}
+        config_dict: Dict[str, Any] = {}
+        if isinstance(wandb_config, dict):
+            config_dict = {str(k): v for k, v in wandb_config.items()}
+        
+        mode = str(self.config.wandb.get("mode", "online"))
+        if mode not in ("online", "offline", "disabled"):
+            mode = "online"
         
         self.run = wandb.init(
             project=str(self.config.wandb.project),
@@ -149,7 +169,7 @@ class ExperimentLogger:
             config=config_dict,
             tags=list(self.config.wandb.tags),
             dir=str(save_dir),
-            mode=str(self.config.wandb.get("mode", "online")),
+            mode=cast(Literal["online", "offline", "disabled"], mode),
         )
     
     def get_callbacks(self) -> List[BaseCallback]:
@@ -166,7 +186,7 @@ class ExperimentLogger:
             
             # If using multiple environments, wrap in DummyVecEnv
             if hasattr(self.config.algorithm, "n_envs") and self.config.algorithm.n_envs > 1:
-                eval_env = DummyVecEnv([lambda: eval_env])
+                eval_env = DummyVecEnv([lambda: gym.make(self.config.env.id, **env_kwargs)])
             
             eval_callback = VideoEvalCallback(
                 eval_env=eval_env,
@@ -199,6 +219,13 @@ class ExperimentLogger:
             if self.config.wandb.get("mode", "online") != "disabled":
                 wandb.save(path + ".zip", base_path=save_dir, policy="now")
     
+    def get_final_score(self) -> float:
+        """Get the final evaluation score from the last evaluation."""
+        callbacks = [cb for cb in self.get_callbacks() if isinstance(cb, VideoEvalCallback)]
+        if callbacks and hasattr(callbacks[0], "last_mean_reward"):
+            return float(callbacks[0].last_mean_reward)
+        return 0.0
+
     def finish(self) -> None:
         """Clean up logging."""
         if self.run is not None:
@@ -248,6 +275,6 @@ class EpisodeLoggingCallback(BaseCallback):
         
         return True
 
-def setup_logging(config: DictConfig, env: Union[gym.Env, VecEnv]) -> ExperimentLogger:
+def setup_logging(config: DictConfig, env: GymEnv) -> ExperimentLogger:
     """Initialize logging for experiment."""
     return ExperimentLogger(config, env) 
