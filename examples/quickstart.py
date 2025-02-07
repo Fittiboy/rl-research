@@ -145,7 +145,7 @@ def record_video_episodes(
 # =============================================
 # Configuration Setup
 # =============================================
-@hydra.main(version_base=None, config_path="conf")
+@hydra.main(version_base=None, config_path="../rl_research/experiments/configs/examples", config_name="quickstart")
 def main(cfg: DictConfig) -> None:
     """Main training loop with configuration management.
     
