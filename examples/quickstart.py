@@ -52,11 +52,13 @@ class QuickStartCallback(BaseCallback):
     def _on_step(self) -> bool:
         """Called after each step in the environment."""
         # Accumulate reward for the current episode
-        reward = self.locals.get("rewards")[0]
+        rewards = self.locals.get("rewards")
+        reward = rewards[0] if rewards is not None else 0
         self._current_episode_reward += reward
         
         # When episode ends, log the total reward
-        if self.locals.get("dones")[0]:
+        dones = self.locals.get("dones") 
+        if dones is not None and dones[0]:
             self.episode_rewards.append(self._current_episode_reward)
             self.episode_lengths.append(self.n_calls - (len(self.episode_lengths) * self.n_calls))
             
@@ -90,24 +92,55 @@ def record_video_episodes(
     Returns:
         List of episode frames as numpy arrays
     """
-    env = gym.make("CartPole-v1", render_mode="rgb_array")
+    # Create a new environment with rgb_array rendering
+    env_id = env.unwrapped.spec.id if env.unwrapped.spec is not None else "CartPole-v1"
+    eval_env = gym.make(env_id, render_mode="rgb_array")
     
-    episode_frames = []
+    all_episode_frames = []
     for episode in range(num_episodes):
         frames = []
-        obs, _ = env.reset()
+        obs, info = eval_env.reset()
         done = False
         truncated = False
+        step = 0
+        episode_reward = 0.0  # Initialize as float
         
-        while not (done or truncated):
-            frames.append(env.render())
+        while not (done or truncated) and step < max_steps:
+            # Get action from model
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, truncated, info = env.step(action)
             
-        episode_frames.append(np.stack(frames))
+            # Execute action
+            obs, reward, done, truncated, info = eval_env.step(action)
+            episode_reward = float(episode_reward) + float(reward)  # Explicit float conversion
+            
+            # Capture frame
+            frame = eval_env.render()
+            # Ensure frame is in correct format (H, W, C) and uint8
+            if isinstance(frame, np.ndarray):
+                if frame.dtype != np.uint8:
+                    if frame.max() <= 1.0:
+                        frame = (frame * 255).astype(np.uint8)
+                    else:
+                        frame = frame.astype(np.uint8)
+            elif isinstance(frame, list):
+                frame = np.array(frame, dtype=np.uint8)
+            frames.append(frame)
+            step += 1
         
-    env.close()
-    return episode_frames
+        if frames:
+            # Stack frames for this episode [T, H, W, C]
+            episode_frames = np.stack(frames)
+            print(f"\nEpisode {episode + 1}:")
+            print(f"- Total reward: {episode_reward}")
+            print(f"- Number of frames: {len(frames)}")
+            print(f"- Frame shape: {frames[0].shape}")
+            print(f"- Array shape: {episode_frames.shape}")
+            print(f"- Data type: {episode_frames.dtype}")
+            
+            all_episode_frames.append(episode_frames)
+    
+    eval_env.close()
+    return all_episode_frames
 
 # =============================================
 # Configuration Setup
@@ -231,17 +264,24 @@ def main(cfg: DictConfig) -> None:
         eval_episodes = record_video_episodes(model, env, num_episodes=3)
         
         # Log videos to WandB
+        print("\nLogging evaluation videos...")
         for i, frames in enumerate(eval_episodes):
-            # Convert frames to uint8 if they're not already
+            # Ensure frames are in uint8 format
             if frames.dtype != np.uint8:
-                frames = (frames * 255).astype(np.uint8)
+                if frames.max() <= 1.0:
+                    frames = (frames * 255).astype(np.uint8)
+                else:
+                    frames = frames.astype(np.uint8)
             
+            # Log video with metadata
             wandb.log({
                 f"eval_episode_{i+1}": wandb.Video(
                     frames,
                     fps=30,
-                    format="gif"
-                )
+                    format="mp4",
+                    caption=f"Evaluation Episode {i+1} - {len(frames)} frames"
+                ),
+                f"eval_episode_{i+1}_length": len(frames)
             })
         
         # Also log some evaluation metrics
