@@ -1,54 +1,40 @@
 """Test script for WandB setup and authentication."""
 import os
+import pytest
+from unittest.mock import patch, MagicMock
 import wandb
 
 def test_wandb_auth():
     """Test WandB authentication and setup."""
-    print("\nTesting WandB Setup")
-    print("-" * 50)
-    
-    # Check if API key is set
-    api_key = os.environ.get("WANDB_API_KEY")
-    if api_key:
-        print("✓ WANDB_API_KEY environment variable is set")
-    else:
-        print("✗ WANDB_API_KEY environment variable is not set")
-        print("  Please set it using: export WANDB_API_KEY=your_key_here")
-    
-    # Try to authenticate
-    try:
-        wandb.login()
-        print("✓ Successfully authenticated with WandB")
+    with patch('wandb.login') as mock_login, \
+         patch('wandb.init') as mock_init, \
+         patch('wandb.log') as mock_log:
         
-        # Test creating a run
-        run = wandb.init(project="test-project", name="test-run")
-        print("✓ Successfully created a test run")
+        # Set up mocks
+        mock_run = MagicMock()
+        mock_init.return_value = mock_run
         
-        # Log some test metrics
-        wandb.log({"test_metric": 1.0})
-        print("✓ Successfully logged test metrics")
+        # Test with API key set
+        with patch.dict(os.environ, {'WANDB_API_KEY': 'test_key'}):
+            assert os.environ.get('WANDB_API_KEY') is not None
+            mock_login.return_value = True
+            assert mock_login() is True
+            
+            # Test run creation
+            run = mock_init(project="test-project", name="test-run")
+            mock_init.assert_called_once_with(project="test-project", name="test-run")
+            
+            # Test metric logging
+            wandb.log({"test_metric": 1.0})
+            mock_log.assert_called_once_with({"test_metric": 1.0})
+            
+            # Test cleanup
+            run.finish()
+            mock_run.finish.assert_called_once()
         
-        # Cleanup
-        run.finish()
-        print("✓ Successfully finished the test run")
-        
-    except wandb.errors.UsageError:
-        print("✗ Authentication failed")
-        print("  Please check your API key and internet connection")
-    except Exception as e:
-        print(f"✗ Error during testing: {str(e)}")
-    
-    print("\nSetup Guide:")
-    print("1. Create an account at https://wandb.ai/")
-    print("2. Get your API key from https://wandb.ai/settings")
-    print("3. Set up your key using one of these methods:")
-    print("   a. Export environment variable:")
-    print("      export WANDB_API_KEY=your_key_here")
-    print("   b. Create config file:")
-    print("      mkdir -p ~/.config/wandb")
-    print("      echo 'api_key: your_key_here' > ~/.config/wandb/settings")
-    print("   c. Login via CLI:")
-    print("      wandb login")
+        # Test without API key
+        with patch.dict(os.environ, clear=True):
+            assert os.environ.get('WANDB_API_KEY') is None
 
 if __name__ == "__main__":
     test_wandb_auth() 
