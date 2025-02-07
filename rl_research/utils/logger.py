@@ -198,7 +198,7 @@ class ExperimentLogger:
     def get_callbacks(self):
         """Get list of callbacks for training."""
         # Create evaluation environment
-        eval_env = DummyVecEnv([lambda: Monitor(gym.make(self.config.env.id, render_mode="rgb_array", **self.config.env.params))])
+        eval_env = DummyVecEnv([lambda: Monitor(gym.make(self.config.env.id, **self.config.env.params))])
         
         # Only apply VecTransposeImage if observation space is an image
         if is_image_space(eval_env.observation_space) or isinstance(eval_env.observation_space, spaces.Dict):
