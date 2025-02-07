@@ -6,10 +6,26 @@ defaults:
 experiment:
   name: ${algorithm.name}_${env.name}
   seed: 42
-  total_timesteps: 1_000_000
-  eval_frequency: 10_000
+  total_timesteps: 50000
+  eval_frequency: 5000
+
+# Video recording settings
+video:
+  enabled: true  # Enable/disable video recording
+  record_freq: 1  # Record every N evaluations
+  num_episodes: 2  # Record N episodes each time
+  fps: 30  # Frame rate for videos
+  local:
+    enabled: false  # Whether to save videos locally
+    dir: "${hydra:runtime.output_dir}/videos"  # Directory for local videos
+    format: "mp4"  # Video format (mp4, avi)
+  wandb:
+    enabled: true  # Whether to log videos to WandB
+    prefix: "${experiment.name}"  # Prefix for video names
   
 wandb:
   project: "rl_research"
   group: "${experiment.name}"
-  tags: [] 
+  tags: ["training"]
+  mode: ${oc.env:WANDB_MODE,"online"}
+  dir: ${hydra:runtime.output_dir} 
