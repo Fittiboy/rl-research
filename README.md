@@ -34,7 +34,7 @@ rl_research/
 
 1. Create and activate conda environment:
 ```bash
-conda create -n rl-research python=3.10
+conda create -n rl-research python=3.8
 conda activate rl-research
 ```
 
@@ -75,13 +75,25 @@ python -m rl_research.experiments.cli experiment.seed=1,2,3,4,5
 
 ## Documentation
 
-- [API Documentation](docs/api/README.md)
-- [User Guides](docs/guides/README.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+The documentation is built using Sphinx and can be found in the `docs/` directory:
+
+- [Installation Guide](docs/source/guides/installation.rst)
+- [Quick Start Guide](docs/source/guides/quickstart.rst)
+- [API Reference](docs/source/api/index.rst)
+- [User Guides](docs/source/guides/index.rst)
+
+To build the documentation locally:
+
+```bash
+cd docs
+make html
+```
+
+Then open `docs/build/html/index.html` in your browser.
 
 ## Development
 
-See our [Contributing Guidelines](CONTRIBUTING.md) for information on how to contribute to the project.
+See our [Contributing Guidelines](docs/source/contributing.rst) for information on how to contribute to the project.
 
 ## License
 
