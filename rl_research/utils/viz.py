@@ -8,8 +8,7 @@ import wandb
 
 def set_style():
     """Set the style for all plots."""
-    plt.style.use('seaborn')
-    sns.set_palette("husl")
+    sns.set_theme()  # This is the modern way to set seaborn style
     
 def plot_learning_curves(
     runs: List[Any],  # wandb.sdk.wandb_run.Run

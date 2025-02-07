@@ -53,12 +53,12 @@ class QuickStartCallback(BaseCallback):
         """Called after each step in the environment."""
         # Accumulate reward for the current episode
         rewards = self.locals.get("rewards")
-        reward = rewards[0] if rewards is not None else 0
+        reward = rewards[0] if rewards and len(rewards) > 0 else 0
         self._current_episode_reward += reward
         
         # When episode ends, log the total reward
         dones = self.locals.get("dones") 
-        if dones is not None and dones[0]:
+        if dones and len(dones) > 0 and dones[0]:
             self.episode_rewards.append(self._current_episode_reward)
             self.episode_lengths.append(self.n_calls - (len(self.episode_lengths) * self.n_calls))
             
@@ -72,7 +72,7 @@ class QuickStartCallback(BaseCallback):
             
             # Reset episode reward accumulator
             self._current_episode_reward = 0
-            
+        
         return True
 
 def record_video_episodes(
@@ -119,9 +119,9 @@ def record_video_episodes(
             if isinstance(frame, np.ndarray):
                 if frame.dtype != np.uint8:
                     if frame.max() <= 1.0:
-                        frame = (frame * 255).astype(np.uint8)
+                        frame = np.array(frame * 255, dtype=np.uint8)
                     else:
-                        frame = frame.astype(np.uint8)
+                        frame = np.array(frame, dtype=np.uint8)
             elif isinstance(frame, list):
                 frame = np.array(frame, dtype=np.uint8)
             frames.append(frame)
