@@ -35,14 +35,14 @@ Logging Metrics
 Basic Metrics
 ~~~~~~~~~~~
 
-Log scalar values with optional step:
+Log scalar values:
 
 .. code-block:: python
 
    logger.log_metrics({
        "reward": 100.0,
        "loss": 0.5
-   }, step=1000)
+   })
 
 Nested Metrics
 ~~~~~~~~~~~~
@@ -81,15 +81,15 @@ Available Callbacks
 
 The logger automatically sets up:
 
-1. ``WandbCallback``:
+1. ``EpisodeLoggingCallback``:
    - Logs training metrics
-   - Saves gradients
-   - Tracks model artifacts
+   - Tracks episode rewards and lengths
+   - Calculates rolling statistics
 
-2. ``EvalCallback`` (if eval_frequency is set):
-   - Performs periodic evaluation
-   - Saves best model
-   - Logs evaluation metrics
+2. ``VideoEvalCallback``:
+   - Records evaluation videos
+   - Saves frames in correct format
+   - Logs video metrics to WandB
 
 Model Management
 -------------
@@ -106,6 +106,9 @@ Save trained models with automatic WandB logging:
 
    # Save with custom name
    logger.save_model(model, name="checkpoint_1000")
+
+   # Get final evaluation score
+   final_score = logger.get_final_score()
 
 Cleanup
 ------
@@ -137,13 +140,19 @@ Complete example of logger usage:
        "wandb": {
            "project": "my_project",
            "group": "experiment_1",
-           "tags": ["training"]
+           "tags": ["training"],
+           "mode": "online"
        },
        "experiment": {
            "eval_frequency": 1000
        },
        "env": {
-           "id": "CartPole-v1"
+           "id": "CartPole-v1",
+           "params": {}
+       },
+       "video": {
+           "fps": 30,
+           "num_episodes": 2
        }
    })
 
@@ -159,8 +168,10 @@ Complete example of logger usage:
            callback=logger.get_callbacks()
        )
 
-       # Save final model
+       # Save final model and get score
        logger.save_model(model)
+       final_score = logger.get_final_score()
+       print(f"Final evaluation score: {final_score}")
 
    finally:
        # Cleanup
@@ -178,7 +189,7 @@ Best Practices
 2. **Metric Logging**
    - Use consistent naming conventions
    - Group related metrics
-   - Include step numbers when relevant
+   - Keep metrics organized by category
 
 3. **Resource Management**
    - Clean up logger with finish()

@@ -14,6 +14,14 @@ Added
 * User guides
 * Example notebooks
 
+Changed
+~~~~~~~
+
+* Optimized test performance (85% faster)
+* Improved video callback frame handling
+* Enhanced mock model implementation
+* Fixed callback initialization and logging
+
 [0.1.0] - 2024-02-07
 ------------------
 

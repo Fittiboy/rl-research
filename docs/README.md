@@ -1,16 +1,29 @@
-# RL Research Documentation
+# RL Research Framework Documentation
 
-This directory contains comprehensive documentation for the RL Research Framework.
-
-## Structure
-
-- `api/`: API documentation for each module
-- `guides/`: User guides and tutorials
+This directory contains the documentation for the RL Research Framework.
 
 ## Building the Documentation
 
-TODO: Add documentation build instructions once we set up Sphinx.
+1. Install dependencies:
+```bash
+pip install sphinx sphinx-rtd-theme
+```
 
-## Contributing to Documentation
+2. Build HTML documentation:
+```bash
+make html
+```
 
-Please see our [Contributing Guidelines](../CONTRIBUTING.md) for information on how to improve the documentation. 
+3. View documentation:
+Open `build/html/index.html` in your browser.
+
+## Documentation Structure
+
+- `source/`: Documentation source files
+- `build/`: Generated documentation
+- `api/`: API reference documentation
+- `guides/`: User guides and tutorials
+
+## Contributing
+
+Please update documentation when making changes to the codebase. 
