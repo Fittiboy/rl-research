@@ -7,9 +7,11 @@ import wandb
 import gymnasium as gym
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv
+from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv, VecTransposeImage
 from stable_baselines3.common.type_aliases import GymObs
+from stable_baselines3.common.preprocessing import is_image_space
 from omegaconf import DictConfig, OmegaConf
+from gymnasium import spaces
 
 # Type definitions
 GymEnv = Union[gym.Env, VecEnv]
@@ -187,11 +189,11 @@ class ExperimentLogger:
             env_kwargs = dict(self.config.env.params)
             env_kwargs["render_mode"] = "rgb_array"  # Override render_mode for evaluation
             
-            eval_env = Monitor(gym.make(self.config.env.id, **env_kwargs))
+            eval_env = DummyVecEnv([lambda: Monitor(gym.make(self.config.env.id, **env_kwargs))])
             
-            # If using multiple environments, wrap in DummyVecEnv
-            if hasattr(self.config.algorithm, "n_envs") and self.config.algorithm.n_envs > 1:
-                eval_env = DummyVecEnv([lambda: gym.make(self.config.env.id, **env_kwargs)])
+            # Only apply VecTransposeImage if observation space is an image
+            if is_image_space(eval_env.observation_space) or isinstance(eval_env.observation_space, spaces.Dict):
+                eval_env = VecTransposeImage(eval_env)
             
             eval_callback = VideoEvalCallback(
                 eval_env=eval_env,
@@ -265,7 +267,7 @@ class EpisodeLoggingCallback(BaseCallback):
                 self._episode_lengths.append(episode_info["l"])
                 
                 # Calculate statistics over last 100 episodes
-                window = 100
+                window = min(100, len(self._episode_rewards))
                 recent_rewards = self._episode_rewards[-window:]
                 recent_lengths = self._episode_lengths[-window:]
                 
