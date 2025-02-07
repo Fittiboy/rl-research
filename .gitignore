@@ -43,6 +43,9 @@ models/
 logs/
 *.png
 *.zip
+multirun/
+test_*.py
+videos/
 
 # OS specific
 .DS_Store
