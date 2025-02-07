@@ -55,21 +55,25 @@ Plot evaluation metrics:
 Environment Visualization
 ----------------------
 
-Render Episodes
+Record Episodes
 ~~~~~~~~~~~~~
 
-Plot environment frames:
+Record environment episodes:
 
 .. code-block:: python
 
-   from rl_research.utils.viz import plot_environment_renders
+   from rl_research.utils.viz import record_video_episodes
 
-   # Plot grid of frames
-   plot_environment_renders(
-       frames=episode_frames,  # List of environment renders
-       rows=2,
-       cols=3,
-       figsize=(15, 10)
+   # Record episodes
+   frames, rewards = record_video_episodes(
+       model=trained_model,
+       env_id="CartPole-v1",
+       num_episodes=3,
+       render_fps=30,
+       save_local=True,
+       output_dir="videos",
+       video_format="mp4",
+       prefix="eval"
    )
 
 Saving Visualizations
@@ -98,7 +102,7 @@ Complete example combining multiple visualizations:
        set_style,
        plot_learning_curves,
        plot_evaluation_results,
-       plot_environment_renders,
+       record_video_episodes,
        save_figure
    )
 
@@ -113,9 +117,8 @@ Complete example combining multiple visualizations:
    plot_evaluation_results(eval_returns)
    save_figure("eval_results.png")
 
-   # Plot environment frames
-   plot_environment_renders(episode_frames)
-   save_figure("environment_frames.png")
+   # Record episodes
+   frames, rewards = record_video_episodes(model, "CartPole-v1")
 
 Best Practices
 ------------
@@ -162,199 +165,6 @@ Common Issues
    - Clear plot cache
 
 For more examples, check the ``examples/`` directory in the repository.
-
-State Visualization
-~~~~~~~~~~~~~~~~
-
-Visualize environment states:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import plot_state
-
-   # Plot single state
-   plot_state(state)
-
-   # Plot state sequence
-   plot_state_sequence(
-       states,
-       n_cols=4,
-       figsize=(12, 8)
-   )
-
-Policy Visualization
------------------
-
-Action Distributions
-~~~~~~~~~~~~~~~~~
-
-Visualize policy decisions:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import plot_action_dist
-
-   # Plot action distribution
-   plot_action_dist(
-       model,
-       state,
-       title="Action Distribution"
-   )
-
-Value Function
-~~~~~~~~~~~~
-
-Visualize value estimates:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import plot_value_function
-
-   # Plot value function
-   plot_value_function(
-       model,
-       states,
-       title="State Values"
-   )
-
-Attention Maps
-~~~~~~~~~~~~
-
-For transformer-based policies:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import plot_attention
-
-   # Plot attention weights
-   plot_attention(
-       model,
-       state,
-       layer=0,
-       head=0
-   )
-
-Comparative Analysis
------------------
-
-Compare Experiments
-~~~~~~~~~~~~~~~~
-
-Compare multiple runs:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import compare_experiments
-
-   # Compare learning curves
-   compare_experiments(
-       run_paths=["runs/exp1", "runs/exp2"],
-       metrics=["reward", "loss"],
-       labels=["Baseline", "Improved"]
-   )
-
-Statistical Analysis
-~~~~~~~~~~~~~~~~~
-
-Analyze experiment results:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import plot_statistics
-
-   # Plot performance statistics
-   plot_statistics(
-       run_paths=["runs/exp1", "runs/exp2"],
-       metric="reward",
-       ci=95  # confidence interval
-   )
-
-Interactive Visualization
-----------------------
-
-Jupyter Widgets
-~~~~~~~~~~~~~
-
-Interactive plots for notebooks:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import interactive_plot
-
-   # Create interactive plot
-   interactive_plot(
-       run_path="runs/experiment_name",
-       metrics=["reward", "loss"]
-   )
-
-Real-time Monitoring
-~~~~~~~~~~~~~~~~~
-
-Monitor training progress:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import LivePlot
-
-   # Create live plot
-   live_plot = LivePlot(
-       metrics=["reward", "loss"],
-       update_interval=1.0
-   )
-
-   # Update in training loop
-   live_plot.update(metrics)
-
-Export and Sharing
-----------------
-
-Save Plots
-~~~~~~~~
-
-Export visualizations:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import save_plot
-
-   # Save single plot
-   save_plot(
-       fig,
-       path="plots/learning_curve.png",
-       dpi=300
-   )
-
-   # Save multiple plots
-   save_plots(
-       figs,
-       base_path="plots",
-       prefix="experiment_"
-   )
-
-Generate Reports
-~~~~~~~~~~~~~
-
-Create experiment reports:
-
-.. code-block:: python
-
-   from rl_research.utils.viz import generate_report
-
-   # Generate HTML report
-   generate_report(
-       run_path="runs/experiment_name",
-       output_path="reports/report.html"
-   )
-
-Getting Help
-~~~~~~~~~~
-
-If you encounter issues:
-
-1. Check matplotlib documentation
-2. Review example notebooks
-3. Search common solutions
-4. Report bugs with examples
 
 For more details, see the matplotlib_ and seaborn_ documentation.
 

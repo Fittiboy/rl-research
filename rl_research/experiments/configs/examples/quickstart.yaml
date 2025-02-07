@@ -34,9 +34,17 @@ experiment:
 
 # Video recording settings
 video:
+  enabled: true  # Enable video recording
   record_freq: 1  # Record every evaluation
   num_episodes: 2  # Record 2 episodes each time
   fps: 30
+  local:
+    enabled: false  # Don't save videos locally
+    dir: "${hydra:runtime.output_dir}/videos"
+    format: "mp4"
+  wandb:
+    enabled: true  # Log videos to WandB
+    prefix: "${experiment.name}"
 
 # WandB settings
 wandb:

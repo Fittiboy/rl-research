@@ -40,14 +40,8 @@ conda activate rl-research
 
 2. Install the package:
 ```bash
-# For basic installation
+# Install in development mode
 pip install -e .
-
-# For development installation (includes testing tools)
-pip install -e ".[dev]"
-
-# For visualization tools only
-pip install -e ".[viz]"
 ```
 
 3. Set up Weights & Biases:
@@ -79,8 +73,12 @@ The documentation is built using Sphinx and can be found in the `docs/` director
 
 - [Installation Guide](docs/source/guides/installation.rst)
 - [Quick Start Guide](docs/source/guides/quickstart.rst)
-- [API Reference](docs/source/api/index.rst)
-- [User Guides](docs/source/guides/index.rst)
+- [Configuration Guide](docs/source/guides/configuration.rst)
+- [Experiments Guide](docs/source/guides/experiments.rst)
+- [Custom Environments Guide](docs/source/guides/custom_environments.rst)
+- [Custom Algorithms Guide](docs/source/guides/custom_algorithms.rst)
+- [Logging Guide](docs/source/guides/logging.rst)
+- [Visualization Guide](docs/source/guides/visualization.rst)
 
 To build the documentation locally:
 
