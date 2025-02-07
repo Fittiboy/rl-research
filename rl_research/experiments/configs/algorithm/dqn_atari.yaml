@@ -1,0 +1,18 @@
+name: dqn
+type: stable_baselines3
+params:
+  # Network architecture
+  policy: "CnnPolicy"  # Use CNN policy for image observations
+  
+  # DQN specific parameters
+  learning_rate: 1e-4
+  batch_size: 128
+  gamma: 0.99
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  
+  # Other parameters
+  device: "auto"  # Use GPU if available
+
+# Environment settings
+n_envs: 16  # Number of parallel environments 

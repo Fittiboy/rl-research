@@ -1,9 +1,7 @@
 """Algorithm implementations and factory."""
 from typing import Any, Dict, Optional
 import gymnasium as gym
-from stable_baselines3 import PPO
-from .rllib_wrapper import RLlibWrapper
-
+from stable_baselines3 import PPO, SAC, DQN
 
 def create_algorithm(
     env: gym.Env,
@@ -28,11 +26,23 @@ def create_algorithm(
                 seed=seed,
                 **config["params"]
             )
-    elif config["type"] == "rllib":
-        return RLlibWrapper(
-            env=env,
-            config=config,
-            seed=seed
-        )
+        elif config["name"] == "sac":
+            return SAC(
+                "MlpPolicy",
+                env,
+                seed=seed,
+                **config["params"]
+            )
+        elif config["name"] == "dqn":
+            return DQN(
+                "MlpPolicy",
+                env,
+                seed=seed,
+                **config["params"]
+            )
+        else:
+            raise ValueError(f"Unknown algorithm: {config['name']}")
     else:
         raise ValueError(f"Unknown algorithm type: {config['type']}")
+
+__all__ = ["create_algorithm"]

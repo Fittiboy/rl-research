@@ -3,11 +3,11 @@ defaults:
   - env: cartpole
   - _self_
 
-experiment:
-  name: ${algorithm.name}_${env.name}
-  seed: 42
-  total_timesteps: 50000
-  eval_frequency: 5000
+# Experiment settings
+name: ${algorithm.name}_${env.name}
+seed: 42
+total_timesteps: 50000
+eval_frequency: 5000
 
 # Video recording settings
 video:
@@ -21,11 +21,11 @@ video:
     format: "mp4"  # Video format (mp4, avi)
   wandb:
     enabled: true  # Whether to log videos to WandB
-    prefix: "${experiment.name}"  # Prefix for video names
+    prefix: "${name}"  # Prefix for video names
   
 wandb:
   project: "rl_research"
-  group: "${experiment.name}"
+  group: "${name}"
   tags: ["training"]
   mode: ${oc.env:WANDB_MODE,"online"}
   dir: ${hydra:runtime.output_dir} 

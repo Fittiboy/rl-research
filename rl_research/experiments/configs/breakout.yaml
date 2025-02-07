@@ -1,0 +1,24 @@
+defaults:
+  - algorithm: ppo_atari
+  - env: breakout
+  - _self_
+
+# Experiment settings
+experiment:
+  name: ${algorithm.name}_${env.name}
+  seed: 42
+  total_timesteps: 10000000  # 10M steps for initial training
+  eval_frequency: 25000  # Evaluate every 25K steps
+
+# Video recording settings
+video:
+  fps: 30
+  num_episodes: 2  # Record 2 episodes per evaluation
+
+# WandB settings
+wandb:
+  project: "rl_research"
+  group: "${experiment.name}"
+  tags: ["atari", "breakout", "training"]
+  mode: ${oc.env:WANDB_MODE,"online"}
+  dir: ${hydra:runtime.output_dir} 

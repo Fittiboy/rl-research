@@ -1,9 +1,10 @@
 name: ppo
-type: "stable_baselines3"
+type: stable_baselines3
 params:
-  learning_rate: 0.0003
+  learning_rate: 3e-4
   n_steps: 2048
   batch_size: 64
   n_epochs: 10
   gamma: 0.99
-  gae_lambda: 0.95 
+  gae_lambda: 0.95
+  device: cpu  # Default to CPU for better compatibility 

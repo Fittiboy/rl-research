@@ -1,0 +1,24 @@
+defaults:
+  - algorithm: ppo
+  - env: cartpole
+  - _self_
+
+# Experiment settings
+experiment:
+  name: ${algorithm.name}_${env.name}
+  seed: 42
+  total_timesteps: 50000
+  eval_frequency: 5000
+
+# Video recording settings
+video:
+  fps: 30
+  num_episodes: 2
+
+# WandB settings
+wandb:
+  project: "rl_research"
+  group: "${experiment.name}"
+  tags: ["training"]
+  mode: ${oc.env:WANDB_MODE,"online"}
+  dir: ${hydra:runtime.output_dir} 
