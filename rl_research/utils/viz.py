@@ -1,5 +1,5 @@
 """Visualization utilities for experiment analysis."""
-from typing import List, Optional, Union, Any, Tuple, cast, TypeVar, Protocol
+from typing import List, Optional, Union, Any, Tuple, Protocol, Type, cast
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -20,7 +20,6 @@ class SupportsShape(Protocol):
     def max(self) -> Any: ...
 
 # Type definitions
-RawFrame = TypeVar('RawFrame', bound=SupportsShape)
 Frame = npt.NDArray[np.uint8]  # For processed frames
 FrameList = List[Frame]
 FrameStack = npt.NDArray[np.uint8]  # For stacked frames (T, H, W, C)
@@ -28,18 +27,16 @@ FrameStack = npt.NDArray[np.uint8]  # For stacked frames (T, H, W, C)
 # OpenCV types
 try:
     import cv2
-    from typing_extensions import TypeAlias
-    
-    VideoWriter: TypeAlias = 'cv2.VideoWriter'
-    FourCC = int  # Type for fourcc codes
+    VideoWriterType = Type[cv2.VideoWriter]  # type: ignore
 except ImportError:
     cv2 = None
+    VideoWriterType = Any
 
-def process_frame(raw_frame: RawFrame) -> Frame:
+def process_frame(raw_frame: Union[np.ndarray, SupportsShape]) -> Frame:
     """Process a raw frame into a standardized format.
     
     Args:
-        raw_frame: Raw frame data that supports shape, dtype, min, and max
+        raw_frame: Raw frame data as numpy array or object supporting shape protocol
     
     Returns:
         Processed frame in uint8 RGB format with shape (H, W, 3)
@@ -65,14 +62,14 @@ def process_frame(raw_frame: RawFrame) -> Frame:
     elif frame_array.shape[-1] == 4:  # RGBA
         frame_array = frame_array[..., :3]  # Keep only RGB
     
-    return cast(Frame, frame_array)
+    return cast(Frame, frame_array.astype(np.uint8))
 
 def get_video_writer(
     path: str,
     fps: int,
     size: tuple[int, int],
-    fourcc: Optional[FourCC] = None
-) -> Optional[VideoWriter]:
+    fourcc: Optional[int] = None
+) -> Optional[Any]:
     """Create a video writer with proper type handling.
     
     Args:
@@ -172,24 +169,7 @@ def record_video_episodes(
     prefix: str = "",
     timestep: Optional[int] = None,
 ) -> Tuple[List[FrameStack], List[float]]:
-    """Record video of evaluation episodes.
-    
-    Args:
-        model: The trained model to evaluate
-        env_id: Environment ID to create
-        num_episodes: Number of episodes to record
-        max_steps: Maximum steps per episode
-        deterministic: Whether to use deterministic actions
-        render_fps: FPS for video recording
-        save_local: Whether to save videos locally
-        output_dir: Directory to save local videos
-        video_format: Format for local videos (mp4, avi)
-        prefix: Prefix for video filenames
-        timestep: Current timestep for unique filenames
-    
-    Returns:
-        Tuple of (episode frames, episode rewards)
-    """
+    """Record video of evaluation episodes."""
     if save_local and cv2 is None:
         print("Warning: cv2 not found. Please install opencv-python to save videos locally.")
         save_local = False
@@ -205,7 +185,7 @@ def record_video_episodes(
     obs, _ = env.reset()
     test_frame = env.render()
     if test_frame is not None:
-        test_frame_array = process_frame(cast(RawFrame, test_frame))
+        test_frame_array = process_frame(np.asarray(test_frame))
         print(f"Initial frame shape: {test_frame_array.shape}, dtype: {test_frame_array.dtype}, "
               f"min: {test_frame_array.min()}, max: {test_frame_array.max()}")
     
@@ -215,7 +195,7 @@ def record_video_episodes(
     try:
         for episode in range(num_episodes):
             print(f"\nRecording episode {episode + 1}/{num_episodes}")
-            frames: FrameList = []
+            frames: List[Frame] = []
             total_reward = 0.0
             obs, _ = env.reset()
             done = False
@@ -237,7 +217,7 @@ def record_video_episodes(
                     continue
                 
                 # Process frame into standardized format
-                frame_array = process_frame(cast(RawFrame, frame))
+                frame_array = process_frame(np.asarray(frame))
                 
                 # Debug first frame of each episode
                 if step == 0:
@@ -248,12 +228,12 @@ def record_video_episodes(
                 if save_local:
                     frame_array = cv2.cvtColor(frame_array, cv2.COLOR_RGB2BGR)  # type: ignore
                 
-                frames.append(frame_array)
+                frames.append(cast(Frame, frame_array))
                 step += 1
             
             if frames:
                 print(f"Episode completed with {len(frames)} frames and reward {total_reward:.2f}")
-                frames_array = np.stack(frames)
+                frames_array = cast(FrameStack, np.stack(frames).astype(np.uint8))
                 print(f"Stacked frames shape: {frames_array.shape}, "
                       f"dtype: {frames_array.dtype}, min: {frames_array.min()}, max: {frames_array.max()}")
                 
@@ -279,9 +259,9 @@ def record_video_episodes(
                 
                 # Convert back to RGB for WandB if we converted to BGR
                 if save_local:
-                    frames_array = np.stack([cv2.cvtColor(f, cv2.COLOR_BGR2RGB) for f in frames])  # type: ignore
+                    frames_array = cast(FrameStack, np.stack([cv2.cvtColor(f, cv2.COLOR_BGR2RGB) for f in frames]))  # type: ignore
                 
-                episode_frames.append(cast(FrameStack, frames_array))
+                episode_frames.append(frames_array)
                 episode_rewards.append(total_reward)
             else:
                 print("Warning: No frames captured in this episode!")
