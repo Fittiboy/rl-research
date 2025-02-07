@@ -20,7 +20,8 @@ def test_config():
             "name": "ppo",
             "params": {
                 "learning_rate": 0.0003,
-                "n_steps": 128
+                "n_steps": 128,
+                "device": "cpu"
             }
         },
         "experiment": {

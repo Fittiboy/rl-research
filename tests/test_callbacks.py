@@ -2,7 +2,7 @@
 import pytest
 import numpy as np
 import wandb
-from examples.quickstart import QuickStartCallback
+from rl_research.callbacks import QuickStartCallback
 
 class MockLocals:
     """Mock locals dictionary for testing callbacks."""

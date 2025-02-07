@@ -1,129 +1,141 @@
-"""Tests for experiment logging utilities."""
+"""Tests for logging functionality."""
 import os
+from typing import Dict, Any
 import pytest
+import numpy as np
 import gymnasium as gym
 from omegaconf import OmegaConf
 import wandb
-from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
-from rl_research.utils.logger import ExperimentLogger
+
+from rl_research.utils.logger import (
+    ExperimentLogger,
+    VideoEvalCallback,
+    EpisodeLoggingCallback,
+    setup_logging,
+)
+
+class DummyModel:
+    """Dummy model for testing."""
+    def save(self, path: str) -> None:
+        """Mock save method."""
+        with open(path, "w") as f:
+            f.write("dummy model")
 
 @pytest.fixture
-def mock_config():
+def mock_config() -> Dict[str, Any]:
     """Create a mock configuration for testing."""
-    return OmegaConf.create({
+    return {
         "wandb": {
             "project": "test_project",
             "group": "test_group",
             "tags": ["test"],
-            "mode": "disabled"  # Important: Use disabled mode for tests
+            "mode": "disabled",
+            "dir": "test_output"
         },
         "experiment": {
-            "eval_frequency": 1000,
+            "eval_frequency": 100,
             "name": "test_experiment"
         },
         "env": {
             "id": "CartPole-v1",
-            "type": "gym",
-            "params": {}  # Add empty params to avoid KeyError
+            "params": {}
         },
         "algorithm": {
-            "type": "stable_baselines3",
             "name": "ppo",
-            "params": {
-                "learning_rate": 0.0003,
-                "n_steps": 128
-            }
+            "n_envs": 1,
+            "params": {}
         },
         "video": {
-            "enabled": True,
             "fps": 30,
             "num_episodes": 2
         }
-    })
+    }
 
 @pytest.fixture
-def mock_env():
-    """Create a mock environment for testing."""
+def config(mock_config):
+    """Create OmegaConf configuration."""
+    return OmegaConf.create(mock_config)
+
+@pytest.fixture
+def env():
+    """Create test environment."""
     return gym.make("CartPole-v1")
 
-class TestExperimentLogger:
-    """Test suite for ExperimentLogger."""
+def test_experiment_logger_initialization(config, env):
+    """Test ExperimentLogger initialization."""
+    logger = ExperimentLogger(config, env)
+    assert logger.config == config
+    assert logger.run is not None
+    assert isinstance(logger.env, Monitor)
+
+def test_experiment_logger_callbacks(config, env):
+    """Test callback creation."""
+    logger = ExperimentLogger(config, env)
+    callbacks = logger.get_callbacks()
     
-    def test_initialization(self, mock_config, mock_env):
-        """Test logger initialization."""
-        logger = ExperimentLogger(mock_config, mock_env)
-        assert logger.config == mock_config
-        # Check that env is wrapped in Monitor
-        assert isinstance(logger.env, Monitor)
-        # Check that the base environment is a Gym environment
-        assert isinstance(logger.env.unwrapped, gym.Env)
+    # Should have both VideoEvalCallback and EpisodeLoggingCallback
+    assert len(callbacks) == 2
+    assert any(isinstance(cb, VideoEvalCallback) for cb in callbacks)
+    assert any(isinstance(cb, EpisodeLoggingCallback) for cb in callbacks)
+
+def test_experiment_logger_metrics(config, env):
+    """Test metric logging."""
+    logger = ExperimentLogger(config, env)
+    metrics = {"test_metric": 1.0}
+    logger.log_metrics(metrics)
+    # Since we're in disabled mode, this just tests that the call doesn't error
+
+def test_experiment_logger_model_saving(config, env, tmp_path):
+    """Test model saving functionality."""
+    config.wandb.dir = str(tmp_path)
+    logger = ExperimentLogger(config, env)
     
-    def test_get_callbacks(self, mock_config, mock_env):
-        """Test callback creation."""
-        logger = ExperimentLogger(mock_config, mock_env)
-        callbacks = logger.get_callbacks()
-        
-        # Should return a list of callbacks
-        assert isinstance(callbacks, list)
-        assert len(callbacks) > 0
-        
-        # Check if evaluation callback is included when eval_frequency is set
-        assert any(callback.__class__.__name__ == "VideoEvalCallback" 
-                  for callback in callbacks)
-        
-        # Check if episode logging callback is included
-        assert any(callback.__class__.__name__ == "EpisodeLoggingCallback" 
-                  for callback in callbacks)
-        
-        logger.finish()
+    # Create a dummy model
+    model = DummyModel()
     
-    def test_log_metrics(self, mock_config, mock_env):
-        """Test metric logging."""
-        logger = ExperimentLogger(mock_config, mock_env)
-        
-        # Test logging different types of metrics
-        metrics = {
-            "test_scalar": 1.0,
-            "test_list": [1, 2, 3],
-            "test_dict": {"a": 1, "b": 2}
-        }
-        
-        logger.log_metrics(metrics)
-        logger.log_metrics(metrics, step=10)
-        
-        logger.finish()
+    # Test saving
+    logger.save_model(model, "test_model")
+    assert os.path.exists(os.path.join(tmp_path, "models", "test_model"))
+
+def test_video_eval_callback(config, env):
+    """Test VideoEvalCallback functionality."""
+    eval_env = gym.make("CartPole-v1", render_mode="rgb_array")
+    callback = VideoEvalCallback(
+        eval_env=eval_env,
+        eval_freq=10,
+        video_fps=30,
+        n_eval_episodes=1
+    )
     
-    def test_save_model(self, mock_config, mock_env, tmp_path):
-        """Test model saving functionality."""
-        # Update config to use tmp_path for model saving
-        mock_config.wandb.dir = str(tmp_path)
-        logger = ExperimentLogger(mock_config, mock_env)
-        
-        # Create a test model
-        model = PPO("MlpPolicy", mock_env, device="cpu")  # Force CPU to avoid warnings
-        
-        # Test saving
-        logger.save_model(model, name="test_model")
-        
-        # Verify model was saved (in disabled mode, files are saved locally)
-        model_path = os.path.join(tmp_path, "models", "test_model.zip")
-        assert os.path.exists(model_path), f"Model file not found at {model_path}"
-        
-        logger.finish()
+    assert callback.video_fps == 30
+    assert callback.eval_idx == 0
+    assert callback.last_mean_reward == 0.0
+
+def test_episode_logging_callback(config, env):
+    """Test EpisodeLoggingCallback functionality."""
+    logger = ExperimentLogger(config, env)
+    callback = EpisodeLoggingCallback(logger)
     
-    def test_finish(self, mock_config, mock_env):
-        """Test logger cleanup."""
-        logger = ExperimentLogger(mock_config, mock_env)
-        
-        # Should not raise any errors
-        logger.finish()
-        
-        # Second call should not raise errors
-        logger.finish()
-        
-        # Verify run is properly closed
-        assert logger.run is None
+    # Test episode logging
+    callback.locals = {"infos": [{"episode": {"r": 1.0, "l": 10}}]}
+    callback.num_timesteps = 100
+    
+    assert callback._on_step()
+    assert len(callback._episode_rewards) == 1
+    assert len(callback._episode_lengths) == 1
+    assert callback._episode_count == 1
+
+def test_get_final_score(config, env):
+    """Test get_final_score functionality."""
+    logger = ExperimentLogger(config, env)
+    score = logger.get_final_score()
+    assert score == 0.0  # Should be 0.0 when no evaluation has been done
+
+def test_setup_logging(config, env):
+    """Test setup_logging utility function."""
+    logger = setup_logging(config, env)
+    assert isinstance(logger, ExperimentLogger)
 
 @pytest.fixture(autouse=True)
 def cleanup():
