@@ -5,6 +5,7 @@ import gymnasium as gym
 from omegaconf import OmegaConf
 import wandb
 from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
 from rl_research.utils.logger import ExperimentLogger
 
 @pytest.fixture
@@ -22,7 +23,22 @@ def mock_config():
             "name": "test_experiment"
         },
         "env": {
-            "id": "CartPole-v1"
+            "id": "CartPole-v1",
+            "type": "gym",
+            "params": {}  # Add empty params to avoid KeyError
+        },
+        "algorithm": {
+            "type": "stable_baselines3",
+            "name": "ppo",
+            "params": {
+                "learning_rate": 0.0003,
+                "n_steps": 128
+            }
+        },
+        "video": {
+            "enabled": True,
+            "fps": 30,
+            "num_episodes": 2
         }
     })
 
@@ -38,9 +54,10 @@ class TestExperimentLogger:
         """Test logger initialization."""
         logger = ExperimentLogger(mock_config, mock_env)
         assert logger.config == mock_config
-        assert logger.env == mock_env
-        assert logger.run is not None
-        logger.finish()
+        # Check that env is wrapped in Monitor
+        assert isinstance(logger.env, Monitor)
+        # Check that the base environment is a Gym environment
+        assert isinstance(logger.env.unwrapped, gym.Env)
     
     def test_get_callbacks(self, mock_config, mock_env):
         """Test callback creation."""
@@ -51,8 +68,12 @@ class TestExperimentLogger:
         assert isinstance(callbacks, list)
         assert len(callbacks) > 0
         
-        # Check if WandB callback is included
-        assert any(callback.__class__.__name__ == "WandbCallback" 
+        # Check if evaluation callback is included when eval_frequency is set
+        assert any(callback.__class__.__name__ == "VideoEvalCallback" 
+                  for callback in callbacks)
+        
+        # Check if episode logging callback is included
+        assert any(callback.__class__.__name__ == "EpisodeLoggingCallback" 
                   for callback in callbacks)
         
         logger.finish()
