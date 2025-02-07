@@ -14,6 +14,7 @@ env:
 algorithm:
   name: "ppo"
   type: "stable_baselines3"
+  policy_type: "MlpPolicy"  # Use MLP policy for CartPole
   params:
     learning_rate: 3.0e-4
     n_steps: 2048
@@ -48,7 +49,7 @@ video:
 
 # WandB settings
 wandb:
-  project: "rl_research"
+  project: "rl-quickstart"  # Separate project for quickstart examples
   group: "${experiment.name}"
   tags: ["quickstart", "video_recording"]
   mode: ${oc.env:WANDB_MODE,"online"}

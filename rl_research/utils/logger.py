@@ -8,16 +8,15 @@ import gymnasium as gym
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import VecEnv, DummyVecEnv
-from stable_baselines3.common.type_aliases import GymObs
+from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
 from omegaconf import DictConfig, OmegaConf
 
 # Type definitions
 GymEnv = Union[gym.Env, VecEnv]
 ObsType = TypeVar('ObsType', np.ndarray, Dict[str, np.ndarray])
-VecResetReturn = Tuple[ObsType, Dict[str, Any]]
-GymResetReturn = Tuple[ObsType, Dict[str, Any]]
-VecStepReturn = Tuple[ObsType, np.ndarray, np.ndarray, List[Dict[str, Any]]]
-GymStepReturn = Tuple[ObsType, float, bool, bool, Dict[str, Any]]
+VecResetReturn = Tuple[GymObs, Dict[str, Any]]
+GymResetReturn = Tuple[GymObs, Dict[str, Any]]
+VecStepReturn = Tuple[GymObs, np.ndarray, np.ndarray, List[Dict[str, Any]]]
 
 class SupportsRender(Protocol):
     """Protocol for environments that support rendering."""
@@ -66,15 +65,27 @@ class VideoEvalCallback(EvalCallback):
                 
                 # Handle both vectorized and non-vectorized environments
                 if isinstance(self.eval_env, VecEnv):
-                    obs, info = cast(VecResetReturn, self.eval_env.reset())
+                    obs = self.eval_env.reset()
+                    if isinstance(obs, tuple):
+                        obs = cast(VecResetReturn, obs)[0]  # New Gym API returns (obs, info)
                 else:
-                    obs, info = cast(GymResetReturn, self.eval_env.reset())
+                    obs = self.eval_env.reset()
+                    if isinstance(obs, tuple):
+                        obs = cast(GymResetReturn, obs)[0]  # New Gym API returns (obs, info)
                 
                 done = False
                 
                 while not done:
                     # Get action from model
-                    action, _ = self.model.predict(obs, deterministic=self.deterministic)
+                    # Cast observation to the correct type for predict
+                    if isinstance(obs, np.ndarray):
+                        obs_for_predict = obs
+                    elif isinstance(obs, dict):
+                        obs_for_predict = {k: v for k, v in obs.items()}
+                    else:
+                        raise ValueError(f"Unexpected observation type: {type(obs)}")
+                    
+                    action, _ = self.model.predict(obs_for_predict, deterministic=self.deterministic)
                     
                     # Execute action
                     if isinstance(self.eval_env, VecEnv):
@@ -147,6 +158,7 @@ class ExperimentLogger:
         # Only wrap with Monitor if not already a VecEnv and not already monitored
         self.env = env if isinstance(env, (VecEnv, Monitor)) else Monitor(env)
         self.run = None
+        self._callbacks: Optional[List[BaseCallback]] = None
         self._setup_wandb()
     
     def _setup_wandb(self) -> None:
@@ -174,32 +186,33 @@ class ExperimentLogger:
     
     def get_callbacks(self) -> List[BaseCallback]:
         """Get list of callbacks for training."""
-        callbacks = []
-        
-        # Evaluation callback with video recording
-        if hasattr(self.config.experiment, "eval_frequency"):
-            # Create evaluation environment with same settings as training
-            env_kwargs = dict(self.config.env.params)
-            env_kwargs["render_mode"] = "rgb_array"  # Override render_mode for evaluation
+        if self._callbacks is None:
+            self._callbacks = []
             
-            eval_env = Monitor(gym.make(self.config.env.id, **env_kwargs))
+            # Evaluation callback with video recording
+            if hasattr(self.config.experiment, "eval_frequency"):
+                # Create evaluation environment with same settings as training
+                env_kwargs = dict(self.config.env.params)
+                env_kwargs["render_mode"] = "rgb_array"  # Override render_mode for evaluation
+                
+                eval_env = Monitor(gym.make(self.config.env.id, **env_kwargs))
+                
+                # If using multiple environments, wrap in DummyVecEnv
+                if hasattr(self.config.algorithm, "n_envs") and self.config.algorithm.n_envs > 1:
+                    eval_env = DummyVecEnv([lambda: gym.make(self.config.env.id, render_mode="rgb_array", **env_kwargs)])
+                
+                eval_callback = VideoEvalCallback(
+                    eval_env=eval_env,
+                    eval_freq=self.config.experiment.eval_frequency,
+                    video_fps=self.config.video.fps,
+                    n_eval_episodes=self.config.video.num_episodes,
+                )
+                self._callbacks.append(eval_callback)
             
-            # If using multiple environments, wrap in DummyVecEnv
-            if hasattr(self.config.algorithm, "n_envs") and self.config.algorithm.n_envs > 1:
-                eval_env = DummyVecEnv([lambda: gym.make(self.config.env.id, **env_kwargs)])
-            
-            eval_callback = VideoEvalCallback(
-                eval_env=eval_env,
-                eval_freq=self.config.experiment.eval_frequency,
-                video_fps=self.config.video.fps,
-                n_eval_episodes=self.config.video.num_episodes,
-            )
-            callbacks.append(eval_callback)
+            # Episode logging callback
+            self._callbacks.append(EpisodeLoggingCallback(self))
         
-        # Episode logging callback
-        callbacks.append(EpisodeLoggingCallback(self))
-        
-        return callbacks
+        return self._callbacks
     
     def log_metrics(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
         """Log metrics to WandB."""
@@ -221,9 +234,12 @@ class ExperimentLogger:
     
     def get_final_score(self) -> float:
         """Get the final evaluation score from the last evaluation."""
-        callbacks = [cb for cb in self.get_callbacks() if isinstance(cb, VideoEvalCallback)]
-        if callbacks and hasattr(callbacks[0], "last_mean_reward"):
-            return float(callbacks[0].last_mean_reward)
+        if self._callbacks is None:
+            return 0.0
+        
+        eval_callbacks = [cb for cb in self._callbacks if isinstance(cb, VideoEvalCallback)]
+        if eval_callbacks and hasattr(eval_callbacks[0], "last_mean_reward"):
+            return float(eval_callbacks[0].last_mean_reward)
         return 0.0
 
     def finish(self) -> None:
@@ -238,6 +254,13 @@ class ExperimentLogger:
                 )
             self.run.finish()
             self.run = None
+            
+        # Clean up callbacks
+        if self._callbacks is not None:
+            for callback in self._callbacks:
+                if hasattr(callback, "eval_env"):
+                    callback.eval_env.close()  # type: ignore
+            self._callbacks = None
 
 class EpisodeLoggingCallback(BaseCallback):
     """Callback for logging episode metrics."""
