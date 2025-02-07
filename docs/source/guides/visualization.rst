@@ -1,7 +1,19 @@
 Visualization Utilities
 =====================
 
-RL Research provides various tools for visualizing experiment results and agent behavior.
+RL Research provides tools for visualizing experiment results and agent behavior.
+
+Basic Setup
+----------
+
+Set the plotting style:
+
+.. code-block:: python
+
+   from rl_research.utils.viz import set_style
+
+   # Set the default style (uses seaborn)
+   set_style()
 
 Learning Curves
 -------------
@@ -9,43 +21,35 @@ Learning Curves
 Plot Training Progress
 ~~~~~~~~~~~~~~~~~~~
 
-Visualize training metrics:
+Visualize training metrics from multiple runs:
 
 .. code-block:: python
 
-   from rl_research.utils.viz import plot_learning_curve
+   from rl_research.utils.viz import plot_learning_curves
 
-   # Plot single run
-   plot_learning_curve(
-       run_path="runs/experiment_name",
-       metric="reward",
-       window=100
-   )
-
-   # Plot multiple runs
-   plot_learning_curve(
-       run_paths=["runs/exp1", "runs/exp2"],
-       metric="reward",
-       window=100,
-       labels=["Experiment 1", "Experiment 2"]
-   )
-
-Customization Options
-~~~~~~~~~~~~~~~~~~
-
-Customize plot appearance:
-
-.. code-block:: python
-
-   plot_learning_curve(
-       run_path="runs/experiment_name",
-       metric="reward",
+   # Plot learning curves
+   plot_learning_curves(
+       runs=wandb_runs,  # List of WandB runs
+       metric="rollout/ep_rew_mean",
        window=100,
        title="Training Progress",
-       xlabel="Steps",
-       ylabel="Average Reward",
-       figsize=(10, 6),
-       style="seaborn"
+       figsize=(10, 6)
+   )
+
+Evaluation Results
+----------------
+
+Plot evaluation metrics:
+
+.. code-block:: python
+
+   from rl_research.utils.viz import plot_evaluation_results
+
+   # Plot evaluation results
+   plot_evaluation_results(
+       results=[100, 150, 200, 180, 190],  # List of evaluation returns
+       title="Evaluation Results",
+       figsize=(10, 6)
    )
 
 Environment Visualization
@@ -54,26 +58,110 @@ Environment Visualization
 Render Episodes
 ~~~~~~~~~~~~~
 
-Record agent behavior:
+Plot environment frames:
 
 .. code-block:: python
 
-   from rl_research.utils.viz import record_episode
+   from rl_research.utils.viz import plot_environment_renders
 
-   # Record single episode
-   record_episode(
-       model,
-       env,
-       video_path="videos/episode.mp4"
+   # Plot grid of frames
+   plot_environment_renders(
+       frames=episode_frames,  # List of environment renders
+       rows=2,
+       cols=3,
+       figsize=(15, 10)
    )
 
-   # Record multiple episodes
-   record_episode(
-       model,
-       env,
-       video_path="videos/episodes.mp4",
-       n_episodes=5
+Saving Visualizations
+------------------
+
+Save plots to disk:
+
+.. code-block:: python
+
+   from rl_research.utils.viz import save_figure
+
+   # Save the current figure
+   save_figure(
+       path="learning_curve.png",
+       dpi=300
    )
+
+Example Usage
+-----------
+
+Complete example combining multiple visualizations:
+
+.. code-block:: python
+
+   from rl_research.utils.viz import (
+       set_style,
+       plot_learning_curves,
+       plot_evaluation_results,
+       plot_environment_renders,
+       save_figure
+   )
+
+   # Set style
+   set_style()
+
+   # Plot learning curves
+   plot_learning_curves(wandb_runs)
+   save_figure("learning_curves.png")
+
+   # Plot evaluation results
+   plot_evaluation_results(eval_returns)
+   save_figure("eval_results.png")
+
+   # Plot environment frames
+   plot_environment_renders(episode_frames)
+   save_figure("environment_frames.png")
+
+Best Practices
+------------
+
+1. **Style Consistency**
+   - Call ``set_style()`` at the start of your script
+   - Use consistent figure sizes
+   - Keep plots simple and readable
+
+2. **Memory Management**
+   - Close figures after saving to free memory
+   - Use appropriate DPI for your needs
+   - Be mindful of frame buffer sizes
+
+3. **Data Processing**
+   - Smooth learning curves for clarity
+   - Use appropriate window sizes
+   - Handle missing data gracefully
+
+4. **Organization**
+   - Use descriptive filenames
+   - Group related visualizations
+   - Add proper titles and labels
+
+Troubleshooting
+-------------
+
+Common Issues
+~~~~~~~~~~~
+
+1. **Missing Data**
+   - Check if metrics exist in WandB runs
+   - Verify metric names match exactly
+   - Ensure data is properly logged
+
+2. **Plot Quality**
+   - Adjust figure size and DPI
+   - Check smoothing window size
+   - Verify data ranges
+
+3. **Memory Issues**
+   - Close figures after saving
+   - Reduce number of frames
+   - Clear plot cache
+
+For more examples, check the ``examples/`` directory in the repository.
 
 State Visualization
 ~~~~~~~~~~~~~~~~
@@ -257,63 +345,6 @@ Create experiment reports:
        run_path="runs/experiment_name",
        output_path="reports/report.html"
    )
-
-Best Practices
-------------
-
-1. **Plot Clarity**
-   
-   * Use clear titles and labels
-   * Add legends when comparing
-   * Choose appropriate scales
-
-2. **Data Processing**
-   
-   * Smooth noisy data
-   * Use appropriate window sizes
-   * Handle missing data
-
-3. **Comparisons**
-   
-   * Use consistent scales
-   * Show confidence intervals
-   * Include baselines
-
-4. **Resource Usage**
-   
-   * Optimize video quality
-   * Manage file sizes
-   * Clean up old visualizations
-
-5. **Documentation**
-   
-   * Label axes clearly
-   * Add plot descriptions
-   * Document custom visualizations
-
-Troubleshooting
--------------
-
-Common Issues
-~~~~~~~~~~~
-
-1. **Display Problems**
-   
-   * Check matplotlib backend
-   * Verify display settings
-   * Update dependencies
-
-2. **Performance Issues**
-   
-   * Reduce data points
-   * Optimize plot updates
-   * Use appropriate formats
-
-3. **Export Problems**
-   
-   * Check file permissions
-   * Verify paths
-   * Monitor disk space
 
 Getting Help
 ~~~~~~~~~~

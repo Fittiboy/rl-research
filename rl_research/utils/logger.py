@@ -28,20 +28,28 @@ class VideoEvalCallback(EvalCallback):
         verbose: int = 1,
         warn: bool = True,
         # Video recording params
+        video_enabled: bool = True,  # Whether to record videos at all
         record_video_freq: int = 1,  # Record every N evaluations
         num_video_episodes: int = 3,
         video_fps: int = 30,
         save_local: bool = False,  # Whether to save videos locally
         video_dir: str = "videos",  # Directory for local videos
+        video_format: str = "mp4",  # Format for local videos
+        video_prefix: str = "",  # Prefix for video filenames
+        wandb_enabled: bool = True,  # Whether to log videos to WandB
     ):
         """Initialize callback.
         
         Args:
+            video_enabled: Whether to record videos at all
             record_video_freq: Record video every N evaluations (1 = every time)
             num_video_episodes: Number of episodes to record
             video_fps: FPS for video recording
-            save_local: Whether to save videos locally using OpenCV
-            video_dir: Directory for local videos (if save_local is True)
+            save_local: Whether to save videos locally
+            video_dir: Directory for local videos
+            video_format: Format for local videos (mp4, avi)
+            video_prefix: Prefix for video filenames
+            wandb_enabled: Whether to log videos to WandB
             
             Other args: Same as EvalCallback
         """
@@ -58,11 +66,15 @@ class VideoEvalCallback(EvalCallback):
             verbose=verbose,
             warn=warn,
         )
+        self.video_enabled = video_enabled
         self.record_video_freq = record_video_freq
         self.num_video_episodes = num_video_episodes
         self.video_fps = video_fps
         self.save_local = save_local
         self.video_dir = video_dir
+        self.video_format = video_format
+        self.video_prefix = video_prefix
+        self.wandb_enabled = wandb_enabled
         self.eval_idx = 0
     
     def _on_step(self) -> bool:
@@ -73,7 +85,7 @@ class VideoEvalCallback(EvalCallback):
         if self.num_timesteps % self.eval_freq == 0:
             print(f"\nEvaluation at timestep {self.num_timesteps}")
             # Check if we should record video
-            if self.eval_idx % self.record_video_freq == 0:
+            if self.video_enabled and self.eval_idx % self.record_video_freq == 0:
                 print(f"Recording evaluation videos...")
                 # Get the actual environment ID
                 if hasattr(self.eval_env, "envs"):
@@ -93,52 +105,57 @@ class VideoEvalCallback(EvalCallback):
                     render_fps=self.video_fps,
                     save_local=self.save_local,
                     output_dir=self.video_dir,
-                    timestep=self.num_timesteps,  # Pass current timestep
+                    video_format=self.video_format,
+                    prefix=self.video_prefix,
+                    timestep=self.num_timesteps,
                 )
                 
                 print(f"Recorded {len(episode_frames)} episodes")
                 for i, (frames, reward) in enumerate(zip(episode_frames, episode_rewards)):
                     print(f"Episode {i+1}: {len(frames)} frames, reward: {reward:.2f}")
-                    try:
-                        # Ensure frames are in the correct format for WandB
-                        if not isinstance(frames, np.ndarray):
-                            frames = np.array(frames)
-                        
-                        # Ensure frames are uint8 and in range [0, 255]
-                        if frames.dtype != np.uint8:
-                            if frames.max() <= 1.0:
-                                frames = (frames * 255).astype(np.uint8)
-                            else:
-                                frames = frames.astype(np.uint8)
-                        
-                        # Ensure shape is (T, H, W, C)
-                        if frames.ndim != 4:
-                            print(f"Warning: Unexpected frame dimensions: {frames.shape}")
-                            continue
-                        
-                        # Transpose from (T, H, W, C) to (T, C, H, W) for WandB
-                        frames = np.transpose(frames, (0, 3, 1, 2))
-                        print(f"Transposed frames for WandB - Shape: {frames.shape}, dtype: {frames.dtype}")
-                        
-                        # Create video with explicit format
-                        video = wandb.Video(
-                            frames,
-                            fps=self.video_fps,
-                            format="mp4",
-                            caption=f"Eval {self.eval_idx} - Episode {i+1}"
-                        )
-                        
-                        # Log video and metrics
-                        wandb.log({
-                            f"videos/episode_{i+1}": video,
-                            f"videos/episode_{i+1}_reward": reward,
-                            f"videos/episode_{i+1}_length": len(frames)
-                        }, step=self.num_timesteps)
-                        print(f"Successfully logged video {i+1} to WandB")
-                    except Exception as e:
-                        print(f"Error logging video to WandB: {str(e)}")
-                        print(f"Frame info - Shape: {frames.shape}, dtype: {frames.dtype}, "
-                              f"min: {frames.min()}, max: {frames.max()}")
+                    
+                    # Log to WandB if enabled
+                    if self.wandb_enabled:
+                        try:
+                            # Ensure frames are in the correct format for WandB
+                            if not isinstance(frames, np.ndarray):
+                                frames = np.array(frames)
+                            
+                            # Ensure frames are uint8 and in range [0, 255]
+                            if frames.dtype != np.uint8:
+                                if frames.max() <= 1.0:
+                                    frames = (frames * 255).astype(np.uint8)
+                                else:
+                                    frames = frames.astype(np.uint8)
+                            
+                            # Ensure shape is (T, H, W, C)
+                            if frames.ndim != 4:
+                                print(f"Warning: Unexpected frame dimensions: {frames.shape}")
+                                continue
+                            
+                            # Transpose from (T, H, W, C) to (T, C, H, W) for WandB
+                            frames = np.transpose(frames, (0, 3, 1, 2))
+                            print(f"Transposed frames for WandB - Shape: {frames.shape}, dtype: {frames.dtype}")
+                            
+                            # Create video with explicit format
+                            video = wandb.Video(
+                                frames,
+                                fps=self.video_fps,
+                                format="mp4",
+                                caption=f"Eval {self.eval_idx} - Episode {i+1}"
+                            )
+                            
+                            # Log video and metrics
+                            wandb.log({
+                                f"videos/episode_{i+1}": video,
+                                f"videos/episode_{i+1}_reward": reward,
+                                f"videos/episode_{i+1}_length": len(frames)
+                            }, step=self.num_timesteps)
+                            print(f"Successfully logged video {i+1} to WandB")
+                        except Exception as e:
+                            print(f"Error logging video to WandB: {str(e)}")
+                            print(f"Frame info - Shape: {frames.shape}, dtype: {frames.dtype}, "
+                                  f"min: {frames.min()}, max: {frames.max()}")
             
             self.eval_idx += 1
         
@@ -211,6 +228,10 @@ class ExperimentLogger:
                 video_fps=video_fps,
                 save_local=video_config.get("save_local", False),
                 video_dir=video_config.get("dir", "videos"),
+                video_enabled=video_config.get("enabled", True),
+                video_format=video_config.get("format", "mp4"),
+                video_prefix=video_config.get("prefix", ""),
+                wandb_enabled=video_config.get("wandb_enabled", True),
             )
             callbacks.append(eval_callback)
         

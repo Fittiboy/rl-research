@@ -3,14 +3,17 @@
 # ==============================================
 
 # Environment settings
-environment:
-  name: "CartPole-v1"
-  max_episode_steps: 500
+env:
+  name: "cartpole"
+  type: "gym"
+  id: "CartPole-v1"
+  params:
+    max_episode_steps: 500
 
 # Algorithm settings
 algorithm:
-  name: "PPO"
-  policy: "MlpPolicy"
+  name: "ppo"
+  type: "stable_baselines3"
   params:
     learning_rate: 3.0e-4
     n_steps: 2048
@@ -20,20 +23,25 @@ algorithm:
     gae_lambda: 0.95
     clip_range: 0.2
     normalize_advantage: true
-    # Automatically detect device
     device: ${oc.env:CUDA_VISIBLE_DEVICES,"cuda"}
 
-# Training settings
-training:
+# Experiment settings
+experiment:
+  name: "${algorithm.name}_${env.name}"
+  seed: 42
   total_timesteps: 50000
-  eval_frequency: 5000
-  save_frequency: 10000
+  eval_frequency: 5000  # Evaluate every 5000 steps
 
-# Logging settings
-logging:
-  wandb:
-    project: "rl-quickstart"
-    group: "${algorithm.name}_${environment.name}"
-    tags: ["quickstart"]
-    # Can be disabled via environment variable
-    mode: ${oc.env:WANDB_MODE,"online"} 
+# Video recording settings
+video:
+  record_freq: 1  # Record every evaluation
+  num_episodes: 2  # Record 2 episodes each time
+  fps: 30
+
+# WandB settings
+wandb:
+  project: "rl_research"
+  group: "${experiment.name}"
+  tags: ["quickstart", "video_recording"]
+  mode: ${oc.env:WANDB_MODE,"online"}
+  dir: ${hydra:runtime.output_dir} 

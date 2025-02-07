@@ -82,7 +82,9 @@ def record_video_episodes(
     render_fps: int = 30,
     save_local: bool = False,
     output_dir: str = "videos",
-    timestep: Optional[int] = None,  # Add timestep parameter for unique filenames
+    video_format: str = "mp4",
+    prefix: str = "",
+    timestep: Optional[int] = None,
 ) -> Tuple[List[np.ndarray], List[float]]:
     """Record video of evaluation episodes.
     
@@ -93,8 +95,10 @@ def record_video_episodes(
         max_steps: Maximum steps per episode
         deterministic: Whether to use deterministic actions
         render_fps: FPS for video recording
-        save_local: Whether to save videos locally using OpenCV
+        save_local: Whether to save videos locally
         output_dir: Directory to save local videos
+        video_format: Format for local videos (mp4, avi)
+        prefix: Prefix for video filenames
         timestep: Current timestep for unique filenames
     """
     try:
@@ -149,10 +153,6 @@ def record_video_episodes(
                 if step == 0:
                     print(f"First frame shape: {frame.shape}, dtype: {frame.dtype}, "
                           f"min: {frame.min()}, max: {frame.max()}")
-                    # Validate frame content
-                    if frame.max() == frame.min():
-                        print("Warning: Frame has uniform values - might be all white or black!")
-                        print(f"Unique values in frame: {np.unique(frame)}")
                 
                 # Ensure frame is in correct format (H, W, 3) and uint8
                 if isinstance(frame, np.ndarray):
@@ -179,16 +179,6 @@ def record_video_episodes(
                     if save_local:
                         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     
-                    # Validate processed frame
-                    if frame.max() == frame.min():
-                        print(f"Warning: Processed frame has uniform values at step {step}!")
-                        print(f"Unique values in processed frame: {np.unique(frame)}")
-                    
-                    # Debug frame after processing
-                    if step == 0:
-                        print(f"Processed first frame shape: {frame.shape}, dtype: {frame.dtype}, "
-                              f"min: {frame.min()}, max: {frame.max()}")
-                    
                     frames.append(frame)
                 
                 step += 1
@@ -201,13 +191,17 @@ def record_video_episodes(
                 
                 # Save video locally if requested
                 if save_local:
-                    # Create unique filename using timestep and episode number
+                    # Create descriptive filename
                     timestamp = f"step_{timestep}_" if timestep is not None else ""
-                    video_path = os.path.join(output_dir, f"{timestamp}episode_{episode+1}.mp4")
+                    base_name = f"{prefix}_" if prefix else ""
+                    filename = f"{base_name}{timestamp}episode_{episode+1}.{video_format}"
+                    video_path = os.path.join(output_dir, filename)
+                    
                     height, width = frames[0].shape[:2]
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v') if video_format == 'mp4' else cv2.VideoWriter_fourcc(*'XVID')
                     writer = cv2.VideoWriter(
                         video_path,
-                        cv2.VideoWriter_fourcc(*'mp4v'),
+                        fourcc,
                         render_fps,
                         (width, height)
                     )
