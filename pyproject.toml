@@ -20,7 +20,8 @@ dependencies = [
     "opencv-python>=4.8.0",
     "ale-py>=0.8.0",
     "autorom[accept-rom-license]>=0.6.1",
-    "box2d-py>=2.3.5"
+    "box2d-py>=2.3.5",
+    "moviepy==1.0.3"
 ]
 
 [build-system]
