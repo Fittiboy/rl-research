@@ -50,3 +50,8 @@ videos/
 # OS specific
 .DS_Store
 Thumbs.db 
+# Generated files
+*.png
+*_model.zip
+*_model/
+
